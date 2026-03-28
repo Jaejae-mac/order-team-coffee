@@ -42,9 +42,13 @@ export default function SessionCard({
 
   // ── 스와이프 상태 ──────────────────────────────────────────────
   const touchStartX = useRef(0);
+  // 터치 시작 시점의 오프셋을 기억 — 이미 열린 상태에서 새 드래그를 시작해도 정확하게 계산
+  const touchStartOffset = useRef(0);
+  // React state는 비동기라 stale 참조 문제 발생 → ref로 현재 오프셋을 동기 추적
+  const currentOffset = useRef(0);
   // 터치 이동 거리가 충분하면 true → 카드 onClick을 차단하기 위해 사용
   const didSwipe = useRef(false);
-  // 카드가 좌측으로 이동한 오프셋 (음수, 최대 -DELETE_BTN_WIDTH)
+  // 카드가 좌측으로 이동한 오프셋 (음수, 최대 -DELETE_BTN_WIDTH) — 렌더링에만 사용
   const [swipeOffset, setSwipeOffset] = useState(0);
   // 스냅 애니메이션 활성화 여부 (손을 떼는 순간만 transition 적용)
   const [isSnapping, setIsSnapping] = useState(false);
@@ -54,6 +58,8 @@ export default function SessionCard({
 
   function handleTouchStart(e: React.TouchEvent) {
     touchStartX.current = e.touches[0].clientX;
+    // 드래그 시작 시점의 오프셋을 저장 (이미 열린 상태라면 -80, 닫힌 상태라면 0)
+    touchStartOffset.current = currentOffset.current;
     didSwipe.current = false;
     setIsSnapping(false);
   }
@@ -64,23 +70,23 @@ export default function SessionCard({
     // 10px 이상 이동했으면 스와이프로 간주 (onClick 차단용)
     if (Math.abs(deltaX) > 10) didSwipe.current = true;
 
-    if (deltaX < 0) {
-      // 좌측 스와이프: DELETE_BTN_WIDTH까지만 이동
-      setSwipeOffset(Math.max(deltaX, -DELETE_BTN_WIDTH));
-    } else if (swipeOffset < 0) {
-      // 우측으로 돌아오는 경우: 스와이프된 상태에서만 처리
-      setSwipeOffset(Math.min(0, swipeOffset + deltaX));
-    }
+    // 시작 오프셋 + 드래그 거리로 계산 → 열린 상태에서 재드래그해도 offset이 리셋되지 않음
+    const newOffset = Math.min(0, Math.max(touchStartOffset.current + deltaX, -DELETE_BTN_WIDTH));
+    currentOffset.current = newOffset;
+    setSwipeOffset(newOffset);
   }
 
   function handleTouchEnd() {
     // 손을 뗄 때 스냅 애니메이션 켜기
     setIsSnapping(true);
-    if (swipeOffset < -SNAP_THRESHOLD) {
+    // stale closure 방지: state 대신 ref로 현재 오프셋 판단
+    if (currentOffset.current < -SNAP_THRESHOLD) {
       // 임계값 초과 → 삭제 버튼 완전히 노출
+      currentOffset.current = -DELETE_BTN_WIDTH;
       setSwipeOffset(-DELETE_BTN_WIDTH);
     } else {
       // 미달 → 원위치
+      currentOffset.current = 0;
       setSwipeOffset(0);
     }
   }
@@ -89,9 +95,11 @@ export default function SessionCard({
     // 스와이프 중이었으면 클릭 무시
     if (didSwipe.current) return;
 
-    if (swipeOffset !== 0) {
+    // stale closure 방지: state 대신 ref로 판단
+    if (currentOffset.current !== 0) {
       // 삭제 버튼이 열려있는 상태에서 카드 클릭 → 닫기
       setIsSnapping(true);
+      currentOffset.current = 0;
       setSwipeOffset(0);
       return;
     }
