@@ -159,6 +159,40 @@ export async function closeSession(
   }
 }
 
+/** 세션 삭제 — 생성자 본인만 가능, 연결된 주문도 DB cascade로 함께 삭제 */
+export async function deleteSession(
+  sessionId: string,
+  creatorName: string
+): Promise<ActionResult<void>> {
+  const auth = await requireAuth();
+  if (!auth.ok) return { data: null, error: auth.error };
+
+  try {
+    const supabase = createServerClient();
+
+    // 세션 존재 및 생성자 일치 확인
+    const { data: session, error: fetchError } = await supabase
+      .from("sessions")
+      .select("creator")
+      .eq("id", sessionId)
+      .single();
+
+    if (fetchError || !session) return { data: null, error: "세션을 찾을 수 없습니다." };
+    if (session.creator !== creatorName) return { data: null, error: "세션 생성자만 삭제할 수 있습니다." };
+
+    const { error } = await supabase
+      .from("sessions")
+      .delete()
+      .eq("id", sessionId);
+
+    if (error) throw error;
+    return { data: undefined, error: null };
+  } catch (err) {
+    const message = getErrorMessage(err, "세션 삭제에 실패했습니다.");
+    return { data: null, error: message };
+  }
+}
+
 /** 세션 재오픈 (closed → open) */
 export async function reopenSession(
   sessionId: string
