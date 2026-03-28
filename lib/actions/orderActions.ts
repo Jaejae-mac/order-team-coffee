@@ -5,6 +5,18 @@
  */
 "use server";
 
+/**
+ * Supabase PostgrestError는 Error 인스턴스가 아닌 plain object이므로
+ * instanceof Error 체크 대신 이 헬퍼를 사용해 메시지를 추출함
+ */
+function getErrorMessage(err: unknown, fallback: string): string {
+  if (err instanceof Error) return err.message;
+  if (typeof err === "object" && err !== null && "message" in err) {
+    return String((err as { message: unknown }).message);
+  }
+  return fallback;
+}
+
 import { cookies } from "next/headers";
 import { createServerClient } from "@/lib/supabase/server";
 import {
@@ -75,7 +87,7 @@ export async function addOrder(
       error: null,
     };
   } catch (err) {
-    const message = err instanceof Error ? err.message : "주문 추가에 실패했습니다.";
+    const message = getErrorMessage(err, "주문 추가에 실패했습니다.");
     return { data: null, error: message };
   }
 }
@@ -129,7 +141,7 @@ export async function editOrder(
       error: null,
     };
   } catch (err) {
-    const message = err instanceof Error ? err.message : "주문 수정에 실패했습니다.";
+    const message = getErrorMessage(err, "주문 수정에 실패했습니다.");
     return { data: null, error: message };
   }
 }
@@ -151,7 +163,7 @@ export async function cancelOrder(
     if (error) throw error;
     return { data: undefined, error: null };
   } catch (err) {
-    const message = err instanceof Error ? err.message : "주문 취소에 실패했습니다.";
+    const message = getErrorMessage(err, "주문 취소에 실패했습니다.");
     return { data: null, error: message };
   }
 }
