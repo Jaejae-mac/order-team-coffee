@@ -154,6 +154,19 @@ html,body{width:100%;height:100%;overflow:hidden;background:#000;color:#fff;font
 .pod-dot{width:9px;height:9px;border-radius:50%;flex-shrink:0}
 .pod-name{flex:1;text-align:left;font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .pod-rank{font-size:0.65rem;color:rgba(255,255,255,0.35);flex-shrink:0}
+/* 당첨자 강조 */
+.pod-item.winner{
+  border-color:rgba(255,215,0,0.75)!important;
+  background:rgba(255,215,0,0.1)!important;
+  box-shadow:0 0 14px rgba(255,215,0,0.22);
+}
+.pod-item.winner .pod-name{color:#ffe066;font-weight:700}
+.pod-winner-badge{
+  font-size:0.6rem;font-weight:700;letter-spacing:0.04em;
+  color:#ffe066;background:rgba(255,215,0,0.18);
+  border:1px solid rgba(255,215,0,0.5);border-radius:4px;
+  padding:1px 5px;flex-shrink:0;white-space:nowrap;
+}
 </style>
 </head>
 <body>
@@ -180,6 +193,16 @@ html,body{width:100%;height:100%;overflow:hidden;background:#000;color:#fff;font
         <option value="1">짧은 맵</option>
         <option value="2" selected>보통 맵</option>
         <option value="3">긴 맵</option>
+      </select>
+    </div>
+    <div class="sbox-row">
+      <select id="winCount">
+        <option value="1">당첨 1명</option>
+        <option value="2">당첨 2명</option>
+      </select>
+      <select id="winFrom">
+        <option value="top">1등부터 당첨</option>
+        <option value="bottom">꼴등부터 당첨</option>
       </select>
     </div>
     <div class="sbox-btns">
@@ -1063,20 +1086,33 @@ function updateRankPanel() {
    RESULT
 ═══════════════════════════════════ */
 function showResult() {
+  // 당첨 설정 읽기
+  const winCount = parseInt(document.getElementById('winCount').value, 10);
+  const winFrom  = document.getElementById('winFrom').value; // 'top' | 'bottom'
+
   document.getElementById('resultPanel').classList.remove('hidden');
   const podium = document.getElementById('podium');
   podium.innerHTML = '';
   const sorted = [...balls].sort((a, b) => a.rank - b.rank);
+  const total  = sorted.length;
+
   sorted.forEach((b, i) => {
+    const rank = i + 1; // 1-indexed
+
+    // 당첨 여부 판별 — 앞에서면 상위 N명, 꼴등부터면 하위 N명
+    const isWinner = winFrom === 'top'
+      ? rank <= winCount
+      : rank > total - winCount;
+
     const medals = ['🥇', '🥈', '🥉'];
     const cls    = ['p1', 'p2', 'p3'];
     const d = document.createElement('div');
-    d.className = `pod-item ${cls[i] || ''}`;
+    d.className = `pod-item ${cls[i] || ''} ${isWinner ? 'winner' : ''}`.trim();
     d.innerHTML =
-      `<span>${medals[i] || `${i + 1}`}</span>` +
+      `<span>${medals[i] || rank}</span>` +
       `<div class="pod-dot" style="background:${b.color};box-shadow:0 0 6px ${b.color}"></div>` +
       `<span class="pod-name">${b.name}</span>` +
-      `<span class="pod-rank">${b.rank}위</span>`;
+      (isWinner ? `<span class="pod-winner-badge">🏆 당첨</span>` : `<span class="pod-rank">${rank}위</span>`);
     podium.appendChild(d);
   });
 }
