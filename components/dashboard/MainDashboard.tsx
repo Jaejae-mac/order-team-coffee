@@ -12,6 +12,7 @@ import Header from "@/components/layout/Header";
 import SessionList from "@/components/sessions/SessionList";
 import CreateSessionModal from "@/components/sessions/CreateSessionModal";
 import FloatingActionButton from "@/components/layout/FloatingActionButton";
+import GameButton from "@/components/layout/GameButton";
 import { useSessionStore } from "@/lib/stores/sessionStore";
 import { useAuthStore } from "@/lib/stores/authStore";
 import { useRealtimeSessions } from "@/hooks/useRealtimeSessions";
@@ -53,13 +54,16 @@ export default function MainDashboard({
     <div className="flex flex-col min-h-screen">
       <Header />
 
-      <main className="flex-1 max-w-2xl mx-auto w-full px-4 py-6 pb-24">
+      <main className="flex-1 max-w-2xl mx-auto w-full px-4 py-6 pb-40">
         <SessionList
           sessions={sessions}
           currentUserName={name}
           currentUserPart={part}
         />
       </main>
+
+      {/* 게임 버튼 (+ 버튼 위) */}
+      <GameButton onClick={() => {}} />
 
       {/* 새 세션 생성 FAB */}
       <FloatingActionButton onClick={() => setCreateModalOpen(true)} />
