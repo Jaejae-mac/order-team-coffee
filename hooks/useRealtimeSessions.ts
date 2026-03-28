@@ -43,6 +43,9 @@ export function useRealtimeSessions(part: PartId) {
               creator_part: p.new.creator_part as PartId,
               status: p.new.status as Session["status"],
             });
+          } else if (p.eventType === "DELETE" && p.old.id) {
+            // 세션이 삭제되면 스토어에서도 제거
+            useSessionStore.getState().removeSession(p.old.id);
           }
         }
       )

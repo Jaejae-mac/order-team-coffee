@@ -10,6 +10,7 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import SessionCard from "@/components/sessions/SessionCard";
 import SessionDetailModal from "@/components/sessions/SessionDetailModal";
 import { deleteSession } from "@/lib/actions/sessionActions";
+import { useSessionStore } from "@/lib/stores/sessionStore";
 import type { Session, PartId } from "@/types";
 
 interface SessionListProps {
@@ -24,13 +25,17 @@ export default function SessionList({
   currentUserPart,
 }: SessionListProps) {
   const [selectedSessionId, setSelectedSessionId] = useState<string | null>(null);
+  const removeSession = useSessionStore((state) => state.removeSession);
 
-  /** 세션 삭제 — 서버에 요청 후 실패 시 알림 (성공 시 실시간 구독이 목록 자동 갱신) */
+  /** 세션 삭제 — 서버 삭제 성공 즉시 스토어에서도 제거 (realtime 도달 전 즉각 반영) */
   async function handleDeleteSession(sessionId: string) {
     const result = await deleteSession(sessionId, currentUserName);
     if (result.error) {
       alert(result.error);
+      return;
     }
+    // 낙관적 업데이트: 서버 삭제 성공 후 로컬 스토어에서 즉시 제거
+    removeSession(sessionId);
   }
 
   const openSessions = sessions.filter((s) => s.status === "open");

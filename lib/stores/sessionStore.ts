@@ -33,6 +33,9 @@ interface SessionStore {
   // 세션에서 주문 제거
   removeOrderFromSession: (sessionId: string, orderId: string) => void;
 
+  // 세션 목록에서 세션 제거 (삭제 시)
+  removeSession: (sessionId: string) => void;
+
   // Realtime: 서버에서 세션 변경이 감지되면 업데이트
   upsertSession: (session: Omit<Session, "orders">) => void;
 }
@@ -86,6 +89,11 @@ export const useSessionStore = create<SessionStore>((set) => ({
           ? { ...s, orders: s.orders.filter((o) => o.id !== orderId) }
           : s
       ),
+    })),
+
+  removeSession: (sessionId) =>
+    set((state) => ({
+      sessions: state.sessions.filter((s) => s.id !== sessionId),
     })),
 
   // Realtime에서 세션 변경을 받으면 기존 세션을 교체하거나 새로 추가
