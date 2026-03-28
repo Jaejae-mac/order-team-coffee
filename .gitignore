@@ -39,3 +39,10 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# Claude Code 에이전트 메모리 & Playwright MCP (로컬 전용)
+.claude/
+.playwright-mcp/
+
+# 테스트용 스크린샷
+*.png
