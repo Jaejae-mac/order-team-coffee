@@ -121,7 +121,8 @@ export default function OrderModal({
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent className="max-w-sm max-h-[90vh] overflow-y-auto">
+      {/* max-w-sm 제거: dialog.tsx에 이미 모바일 안전 제약(max-w-[calc(100%-2rem)])이 있음 */}
+      <DialogContent className="max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>
             {isEditMode ? "✏️ 주문 수정" : "➕ 내 주문 추가"}

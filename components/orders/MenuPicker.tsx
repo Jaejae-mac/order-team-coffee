@@ -65,21 +65,22 @@ export default function MenuPicker({
 
   return (
     <Tabs defaultValue="전체">
-      {/* 검색 입력 */}
+      {/* 검색 입력 — max-w-full로 dialog 너비 초과 방지 */}
       <Input
         placeholder="음료 이름 검색..."
         value={searchQuery}
         onChange={(e) => setSearchQuery(e.target.value)}
-        className="mb-3"
+        className="mb-3 max-w-full"
       />
 
       {/* 카테고리 탭 */}
-      <TabsList className="flex flex-wrap h-auto gap-1 mb-3 bg-transparent p-0">
+      {/* 카테고리가 많아도 한 줄 유지 — 좌우로 슬라이드 가능 */}
+      <TabsList className="flex flex-nowrap overflow-x-auto h-auto gap-1 mb-3 bg-transparent p-0" style={{ scrollbarWidth: "none" }}>
         {categories.map((cat) => (
           <TabsTrigger
             key={cat}
             value={cat}
-            className="text-xs px-3 py-1 rounded-full border data-[state=active]:text-white"
+            className="shrink-0 text-xs px-3 py-1 rounded-full border data-[state=active]:text-white"
             style={{
               ["--store-color" as string]: session.store_color,
             }}
@@ -88,7 +89,7 @@ export default function MenuPicker({
             {cat}
           </TabsTrigger>
         ))}
-        <TabsTrigger value="직접입력" className="text-xs px-3 py-1 rounded-full border">
+        <TabsTrigger value="직접입력" className="shrink-0 text-xs px-3 py-1 rounded-full border">
           ✏️ 직접입력
         </TabsTrigger>
       </TabsList>
@@ -96,13 +97,14 @@ export default function MenuPicker({
       {/* 카테고리별 메뉴 그리드 */}
       {categories.map((cat) => (
         <TabsContent key={cat} value={cat} className="mt-0">
+          {/* min-w-0: grid 셀 내부 버튼이 셀 너비를 초과하지 않도록 제한 */}
           <div className="grid grid-cols-3 gap-2 max-h-56 overflow-y-auto pr-1">
             {(cat === "전체" ? filteredMenus : filteredMenus.filter((m) => m.category === cat)).map(
               (menu) => (
                 <button
                   key={menu.id}
                   onClick={() => onSelect(menu.name)}
-                  className="flex flex-col items-center gap-1 p-2 rounded-xl border-2 transition-all hover:scale-105"
+                  className="min-w-0 flex flex-col items-center gap-1 p-2 rounded-xl border-2 transition-all hover:scale-105"
                   style={{
                     borderColor:
                       selectedMenuName === menu.name
