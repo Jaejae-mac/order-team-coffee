@@ -75,7 +75,7 @@ export default function MenuPicker({
 
       {/* 카테고리 탭 */}
       {/* 카테고리가 많아도 한 줄 유지 — 좌우로 슬라이드 가능 */}
-      <TabsList className="flex flex-nowrap overflow-x-auto h-auto gap-1 mb-3 bg-transparent p-0" style={{ scrollbarWidth: "none" }}>
+      <TabsList className="w-full flex flex-nowrap overflow-x-auto h-auto gap-1 mb-3 bg-transparent p-0" style={{ scrollbarWidth: "none" }}>
         {categories.map((cat) => (
           <TabsTrigger
             key={cat}
