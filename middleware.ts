@@ -24,9 +24,11 @@ export default function middleware(request: NextRequest) {
   }
 
   // verified 쿠키가 없으면 로그인 페이지로 이동
+  // nextUrl.clone()을 사용해야 Edge Runtime에서 안정적으로 동작함
   const verified = request.cookies.get("verified")?.value;
   if (verified !== "true") {
-    const loginUrl = new URL("/login", request.url);
+    const loginUrl = request.nextUrl.clone();
+    loginUrl.pathname = "/login";
     return NextResponse.redirect(loginUrl);
   }
 
