@@ -5,6 +5,8 @@
  */
 "use client";
 
+import { useState } from "react";
+import { Loader2 } from "lucide-react";
 import DrinkCard from "@/components/drink/DrinkCard";
 import { PARTS } from "@/lib/constants/parts";
 import type { GroupedOrder, PartId } from "@/types";
@@ -15,7 +17,7 @@ interface OrderGroupCardProps {
   currentUserName: string;
   sessionStatus: "open" | "closed";
   onEdit: (orderId: string) => void;
-  onCancel: (orderId: string) => void;
+  onCancel: (orderId: string) => Promise<void>;
 }
 
 export default function OrderGroupCard({
@@ -29,6 +31,17 @@ export default function OrderGroupCard({
   const isOpen = sessionStatus === "open";
   // 현재 사용자의 주문이 이 그룹에 포함되어 있는지 확인 (수정/취소 버튼 표시 여부 결정)
   const myOrderInGroup = group.orderers.find((o) => o.name === currentUserName);
+  // 취소 요청 진행 중 여부 — 서버 응답 전까지 버튼 비활성화
+  const [isCanceling, setIsCanceling] = useState(false);
+
+  async function handleCancel(orderId: string) {
+    setIsCanceling(true);
+    try {
+      await onCancel(orderId);
+    } finally {
+      setIsCanceling(false);
+    }
+  }
 
   return (
     <div className="flex items-center gap-3 py-3 border-b border-gray-100 last:border-0">
@@ -88,15 +101,18 @@ export default function OrderGroupCard({
         <div className="flex flex-col gap-1 shrink-0">
           <button
             onClick={() => onEdit(myOrderInGroup.orderId)}
-            className="text-xs px-3 py-1.5 rounded-lg border border-gray-200 text-gray-600 hover:bg-gray-50 transition-colors cursor-pointer"
+            disabled={isCanceling}
+            className="text-xs px-3 py-1.5 rounded-lg border border-gray-200 text-gray-600 hover:bg-gray-50 transition-colors cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
           >
             수정
           </button>
           <button
-            onClick={() => onCancel(myOrderInGroup.orderId)}
-            className="text-xs px-3 py-1.5 rounded-lg border border-red-200 text-red-400 hover:bg-red-50 transition-colors cursor-pointer"
+            onClick={() => handleCancel(myOrderInGroup.orderId)}
+            disabled={isCanceling}
+            className="text-xs px-3 py-1.5 rounded-lg border border-red-200 text-red-400 hover:bg-red-50 transition-colors cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-1"
           >
-            취소
+            {/* 취소 요청 중이면 스피너, 아니면 텍스트 */}
+            {isCanceling ? <Loader2 className="w-3 h-3 animate-spin" /> : "취소"}
           </button>
         </div>
       )}

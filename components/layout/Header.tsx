@@ -4,13 +4,13 @@
  */
 "use client";
 
-import { LogOut } from "lucide-react";
+import { Loader2, LogOut } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { PARTS } from "@/lib/constants/parts";
 import { useAuth } from "@/hooks/useAuth";
 
 export default function Header() {
-  const { name, part, logout } = useAuth();
+  const { name, part, logout, isLoggingOut } = useAuth();
   const currentPart = PARTS.find((p) => p.id === part);
 
   return (
@@ -41,10 +41,15 @@ export default function Header() {
             variant="ghost"
             size="sm"
             onClick={logout}
+            disabled={isLoggingOut}
             className="text-gray-400 hover:text-gray-600 p-1.5"
             aria-label="로그아웃"
           >
-            <LogOut className="w-4 h-4" />
+            {/* 로그아웃 요청 중이면 스피너, 아니면 로그아웃 아이콘 */}
+            {isLoggingOut
+              ? <Loader2 className="w-4 h-4 animate-spin" />
+              : <LogOut className="w-4 h-4" />
+            }
           </Button>
         </div>
       </div>

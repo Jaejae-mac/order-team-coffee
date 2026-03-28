@@ -4,6 +4,7 @@
  */
 "use client";
 
+import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAuthStore } from "@/lib/stores/authStore";
 import type { PartId } from "@/types";
@@ -11,8 +12,11 @@ import type { PartId } from "@/types";
 export function useAuth() {
   const router = useRouter();
   const { name, part, isLoggedIn, setUser, logout } = useAuthStore();
+  // fetch + 페이지 이동이 완료될 때까지 로딩 표시
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
 
   async function handleLogout() {
+    setIsLoggingOut(true);
     try {
       // 서버에서 httpOnly 쿠키 삭제
       await fetch("/api/auth/logout", { method: "POST" });
@@ -21,6 +25,7 @@ export function useAuth() {
     } finally {
       logout();
       router.push("/login");
+      // 페이지 이동 후에는 컴포넌트가 언마운트되므로 state 복원 불필요
     }
   }
 
@@ -28,6 +33,7 @@ export function useAuth() {
     name,
     part: part as PartId | "",
     isLoggedIn,
+    isLoggingOut,
     setUser,
     logout: handleLogout,
   };

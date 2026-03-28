@@ -4,10 +4,11 @@
  */
 "use client";
 
+import { useTransition } from "react";
 import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { User } from "lucide-react";
+import { Loader2, User } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { PARTS } from "@/lib/constants/parts";
@@ -29,6 +30,8 @@ interface ProfileStepProps {
 
 export default function ProfileStep({ onSuccess }: ProfileStepProps) {
   const setUser = useAuthStore((state) => state.setUser);
+  // isPending: router.push 페이지 이동이 완료될 때까지 true로 유지됨
+  const [isPending, startTransition] = useTransition();
 
   const {
     register,
@@ -42,7 +45,8 @@ export default function ProfileStep({ onSuccess }: ProfileStepProps) {
 
   function onSubmit(data: FormData) {
     setUser(data.name, data.part as PartId);
-    onSuccess();
+    // startTransition으로 감싸면 이동이 완료될 때까지 isPending이 true가 됨
+    startTransition(() => onSuccess());
   }
 
   return (
@@ -110,9 +114,15 @@ export default function ProfileStep({ onSuccess }: ProfileStepProps) {
 
         <Button
           type="submit"
+          disabled={isPending}
           className="h-12 bg-white text-gray-900 hover:bg-white/90 font-semibold mt-2"
         >
-          시작하기
+          {isPending ? (
+            // 페이지 이동 중 스피너 표시
+            <Loader2 className="w-5 h-5 animate-spin text-gray-500" />
+          ) : (
+            "시작하기"
+          )}
         </Button>
       </form>
     </div>
