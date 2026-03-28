@@ -9,6 +9,7 @@ import { useState } from "react";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import SessionCard from "@/components/sessions/SessionCard";
 import SessionDetailModal from "@/components/sessions/SessionDetailModal";
+import { deleteSession } from "@/lib/actions/sessionActions";
 import type { Session, PartId } from "@/types";
 
 interface SessionListProps {
@@ -23,6 +24,14 @@ export default function SessionList({
   currentUserPart,
 }: SessionListProps) {
   const [selectedSessionId, setSelectedSessionId] = useState<string | null>(null);
+
+  /** 세션 삭제 — 서버에 요청 후 실패 시 알림 (성공 시 실시간 구독이 목록 자동 갱신) */
+  async function handleDeleteSession(sessionId: string) {
+    const result = await deleteSession(sessionId, currentUserName);
+    if (result.error) {
+      alert(result.error);
+    }
+  }
 
   const openSessions = sessions.filter((s) => s.status === "open");
   const closedSessions = sessions.filter((s) => s.status === "closed");
@@ -50,7 +59,9 @@ export default function SessionList({
                 <SessionCard
                   key={session.id}
                   session={session}
+                  currentUserName={currentUserName}
                   onClick={() => setSelectedSessionId(session.id)}
+                  onDelete={handleDeleteSession}
                 />
               ))}
             </div>
@@ -67,7 +78,9 @@ export default function SessionList({
                 <SessionCard
                   key={session.id}
                   session={session}
+                  currentUserName={currentUserName}
                   onClick={() => setSelectedSessionId(session.id)}
+                  onDelete={handleDeleteSession}
                 />
               ))}
             </div>
