@@ -29,6 +29,9 @@ export default function MenuPicker({
   onDirectInputChange,
 }: MenuPickerProps) {
   const [searchQuery, setSearchQuery] = useState("");
+  // 활성 카테고리를 별도 state로 관리 — tabs.tsx 기본 클래스(data-active:bg-background)가
+  // CSS 선택자 방식과 충돌하므로 inline style로 활성 탭 스타일을 직접 제어
+  const [activeCategory, setActiveCategory] = useState("전체");
 
   const menus = getMenus(session.store_id);
   const isCustomStore = session.store_id === "custom" || menus.length === 0;
@@ -48,6 +51,19 @@ export default function MenuPicker({
     [menus, searchQuery]
   );
 
+  // 카테고리 변경 시 검색어 초기화
+  function handleCategoryChange(val: string) {
+    setActiveCategory(val);
+    setSearchQuery("");
+  }
+
+  // 활성/비활성 탭 스타일 반환 헬퍼
+  function getTabStyle(cat: string): React.CSSProperties {
+    return activeCategory === cat
+      ? { backgroundColor: session.store_color, borderColor: session.store_color, color: "white" }
+      : { backgroundColor: "white", borderColor: "#e5e7eb", color: "#6b7280" };
+  }
+
   // 기타 매장은 직접 입력만 표시
   if (isCustomStore) {
     return (
@@ -64,9 +80,8 @@ export default function MenuPicker({
   }
 
   return (
-    // flex-col 강제 적용 — tabs.tsx의 data-horizontal:flex-col이 Base UI에서 매칭 안 되므로 직접 지정
-    // w-full min-w-0: flex/grid 아이템의 min-width: auto 전파를 차단하여 TabsList 가로 스크롤이 모달을 확장시키지 않도록 함
-    <Tabs defaultValue="전체" className="flex-col w-full min-w-0">
+    // value/onValueChange로 완전 제어 — 카테고리 탭 활성 상태를 state로 직접 관리
+    <Tabs value={activeCategory} onValueChange={handleCategoryChange} className="flex-col w-full min-w-0">
       {/* 검색 입력 — max-w-full로 dialog 너비 초과 방지 */}
       <Input
         placeholder="음료 이름 검색..."
@@ -75,24 +90,27 @@ export default function MenuPicker({
         className="mb-3 max-w-full"
       />
 
-      {/* 카테고리 탭 — flex-none으로 자연 너비 유지 → overflow-x-auto 스크롤 작동 */}
-      <TabsList className="w-full flex flex-nowrap overflow-x-auto h-auto gap-1 mb-3 bg-transparent p-0" style={{ scrollbarWidth: "none" }}>
+      {/* 카테고리 탭 — touchAction:pan-x로 터치 시 세로 스크롤 방지 */}
+      <TabsList
+        className="w-full flex flex-nowrap overflow-x-auto h-auto gap-1 mb-3 bg-transparent p-0 justify-start"
+        style={{ scrollbarWidth: "none", touchAction: "pan-x" }}
+      >
         {categories.map((cat) => (
           <TabsTrigger
             key={cat}
             value={cat}
-            // flex-none: 탭 자연 너비 유지 (flex-1 기본값 오버라이드)
-            // data-[active]: Base UI 활성 선택자 (Radix의 data-[state=active]와 다름)
-            className="flex-none text-xs px-3 py-1 rounded-full border-2 transition-all data-[active]:text-white data-[active]:bg-[--store-color] data-[active]:border-[--store-color]"
-            style={{
-              ["--store-color" as string]: session.store_color,
-            }}
-            onClick={() => setSearchQuery("")}
+            // inline style로 활성 스타일 적용 — CSS 클래스 방식은 tabs.tsx 기본값과 충돌
+            className="flex-none text-xs px-3 py-1 rounded-full border-2 transition-all"
+            style={getTabStyle(cat)}
           >
             {cat}
           </TabsTrigger>
         ))}
-        <TabsTrigger value="직접입력" className="flex-none text-xs px-3 py-1 rounded-full border">
+        <TabsTrigger
+          value="직접입력"
+          className="flex-none text-xs px-3 py-1 rounded-full border-2 transition-all"
+          style={getTabStyle("직접입력")}
+        >
           ✏️ 직접입력
         </TabsTrigger>
       </TabsList>
@@ -100,7 +118,6 @@ export default function MenuPicker({
       {/* 카테고리별 메뉴 그리드 */}
       {categories.map((cat) => (
         <TabsContent key={cat} value={cat} className="mt-0">
-          {/* min-w-0: grid 셀 내부 버튼이 셀 너비를 초과하지 않도록 제한 */}
           <div className="grid grid-cols-3 gap-2 max-h-56 overflow-y-auto pr-1">
             {(cat === "전체" ? filteredMenus : filteredMenus.filter((m) => m.category === cat)).map(
               (menu) => (

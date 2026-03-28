@@ -31,7 +31,8 @@ function DialogOverlay({
     <DialogPrimitive.Backdrop
       data-slot="dialog-overlay"
       className={cn(
-        "fixed inset-0 isolate z-50 bg-black/10 duration-100 supports-backdrop-filter:backdrop-blur-xs data-open:animate-in data-open:fade-in-0 data-closed:animate-out data-closed:fade-out-0",
+        // data-[base-ui-inert]: 다른 다이얼로그가 위에 열릴 때 Base UI가 이 overlay를 inert로 표시 → pointer-events-none으로 클릭 차단 방지
+        "fixed inset-0 isolate z-50 bg-black/10 duration-100 supports-backdrop-filter:backdrop-blur-xs data-open:animate-in data-open:fade-in-0 data-closed:animate-out data-closed:fade-out-0 data-[base-ui-inert]:pointer-events-none",
         className
       )}
       {...props}
