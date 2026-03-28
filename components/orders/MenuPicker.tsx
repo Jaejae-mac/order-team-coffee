@@ -64,7 +64,9 @@ export default function MenuPicker({
   }
 
   return (
-    <Tabs defaultValue="전체">
+    // flex-col 강제 적용 — tabs.tsx의 data-horizontal:flex-col이 Base UI에서 매칭 안 되므로 직접 지정
+    // w-full min-w-0: flex/grid 아이템의 min-width: auto 전파를 차단하여 TabsList 가로 스크롤이 모달을 확장시키지 않도록 함
+    <Tabs defaultValue="전체" className="flex-col w-full min-w-0">
       {/* 검색 입력 — max-w-full로 dialog 너비 초과 방지 */}
       <Input
         placeholder="음료 이름 검색..."
@@ -73,14 +75,15 @@ export default function MenuPicker({
         className="mb-3 max-w-full"
       />
 
-      {/* 카테고리 탭 */}
-      {/* 카테고리가 많아도 한 줄 유지 — 좌우로 슬라이드 가능 */}
+      {/* 카테고리 탭 — flex-none으로 자연 너비 유지 → overflow-x-auto 스크롤 작동 */}
       <TabsList className="w-full flex flex-nowrap overflow-x-auto h-auto gap-1 mb-3 bg-transparent p-0" style={{ scrollbarWidth: "none" }}>
         {categories.map((cat) => (
           <TabsTrigger
             key={cat}
             value={cat}
-            className="shrink-0 text-xs px-3 py-1 rounded-full border data-[state=active]:text-white"
+            // flex-none: 탭 자연 너비 유지 (flex-1 기본값 오버라이드)
+            // data-[active]: Base UI 활성 선택자 (Radix의 data-[state=active]와 다름)
+            className="flex-none text-xs px-3 py-1 rounded-full border-2 transition-all data-[active]:text-white data-[active]:bg-[--store-color] data-[active]:border-[--store-color]"
             style={{
               ["--store-color" as string]: session.store_color,
             }}
@@ -89,7 +92,7 @@ export default function MenuPicker({
             {cat}
           </TabsTrigger>
         ))}
-        <TabsTrigger value="직접입력" className="shrink-0 text-xs px-3 py-1 rounded-full border">
+        <TabsTrigger value="직접입력" className="flex-none text-xs px-3 py-1 rounded-full border">
           ✏️ 직접입력
         </TabsTrigger>
       </TabsList>

@@ -27,9 +27,11 @@ export default function OrderGroupCard({
   onCancel,
 }: OrderGroupCardProps) {
   const isOpen = sessionStatus === "open";
+  // 현재 사용자의 주문이 이 그룹에 포함되어 있는지 확인 (수정/취소 버튼 표시 여부 결정)
+  const myOrderInGroup = group.orderers.find((o) => o.name === currentUserName);
 
   return (
-    <div className="flex items-start gap-3 py-3 border-b border-gray-100 last:border-0">
+    <div className="flex items-center gap-3 py-3 border-b border-gray-100 last:border-0">
       {/* 음료 카드 */}
       <DrinkCard name={group.menu} size={48} storeColor={storeColor} />
 
@@ -56,49 +58,48 @@ export default function OrderGroupCard({
           {group.memo && ` · ${group.memo}`}
         </p>
 
-        {/* 주문자 목록 */}
+        {/* 주문자 목록 — 이름 뱃지만 표시 (수정/취소는 셀 우측으로 이동) */}
         <div className="flex flex-wrap gap-1 mt-1.5">
           {group.orderers.map((orderer) => {
             const part = PARTS.find((p) => p.id === orderer.part);
             const isMe = orderer.name === currentUserName;
 
             return (
-              <div key={orderer.orderId} className="flex items-center gap-1">
-                <span
-                  className="text-xs px-2 py-0.5 rounded-full"
-                  style={{
-                    background: part?.bg ?? "#f3f4f6",
-                    color: part?.color ?? "#374151",
-                    fontWeight: isMe ? 700 : 400,
-                    // 내 주문은 테두리로 강조
-                    border: isMe ? `1px solid ${part?.color ?? "#9ca3af"}` : "none",
-                  }}
-                >
-                  {orderer.name}
-                </span>
-
-                {/* 세션이 열려 있고 내 주문이면 수정/취소 버튼 */}
-                {isOpen && isMe && (
-                  <>
-                    <button
-                      onClick={() => onEdit(orderer.orderId)}
-                      className="text-xs text-blue-500 hover:text-blue-700 transition-colors"
-                    >
-                      수정
-                    </button>
-                    <button
-                      onClick={() => onCancel(orderer.orderId)}
-                      className="text-xs text-red-400 hover:text-red-600 transition-colors"
-                    >
-                      취소
-                    </button>
-                  </>
-                )}
-              </div>
+              <span
+                key={orderer.orderId}
+                className="text-xs px-2 py-0.5 rounded-full"
+                style={{
+                  background: part?.bg ?? "#f3f4f6",
+                  color: part?.color ?? "#374151",
+                  fontWeight: isMe ? 700 : 400,
+                  // 내 주문은 테두리로 강조
+                  border: isMe ? `1px solid ${part?.color ?? "#9ca3af"}` : "none",
+                }}
+              >
+                {orderer.name}
+              </span>
             );
           })}
         </div>
       </div>
+
+      {/* 세션이 열려 있고 내 주문이 이 그룹에 있을 때 셀 우측에 버튼 표시 */}
+      {isOpen && myOrderInGroup && (
+        <div className="flex flex-col gap-1 shrink-0">
+          <button
+            onClick={() => onEdit(myOrderInGroup.orderId)}
+            className="text-xs px-3 py-1.5 rounded-lg border border-gray-200 text-gray-600 hover:bg-gray-50 transition-colors cursor-pointer"
+          >
+            수정
+          </button>
+          <button
+            onClick={() => onCancel(myOrderInGroup.orderId)}
+            className="text-xs px-3 py-1.5 rounded-lg border border-red-200 text-red-400 hover:bg-red-50 transition-colors cursor-pointer"
+          >
+            취소
+          </button>
+        </div>
+      )}
     </div>
   );
 }

@@ -122,6 +122,7 @@ export default function OrderModal({
   return (
     <Dialog open={open} onOpenChange={onClose}>
       {/* max-w-sm 제거: dialog.tsx에 이미 모바일 안전 제약(max-w-[calc(100%-2rem)])이 있음 */}
+      {/* overflow-x-hidden: overflow-y-auto 설정 시 CSS 스펙상 overflow-x도 auto로 암묵 변환되므로 명시적으로 hidden 설정 */}
       <DialogContent className="max-h-[90vh] overflow-y-auto overflow-x-hidden">
         <DialogHeader>
           <DialogTitle>
@@ -129,7 +130,8 @@ export default function OrderModal({
           </DialogTitle>
         </DialogHeader>
 
-        <div className="flex flex-col gap-4">
+        {/* min-w-0: grid 아이템의 기본 min-width: auto를 0으로 재정의 → 자식 컨텐츠가 다이얼로그 너비를 넘지 않도록 방어 */}
+        <div className="flex flex-col gap-4 min-w-0">
           {/* 1단계: 음료 선택 */}
           <section>
             <p className="text-sm font-medium text-gray-700 mb-2">음료 선택</p>

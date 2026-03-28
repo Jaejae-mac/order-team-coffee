@@ -110,9 +110,11 @@ export default function SessionDetailModal({
                   <p className="text-xs text-gray-400">{timeAgo(session.created_at)} · {session.creator}</p>
                 </div>
               </div>
+              {/* mr-8: 닫기 버튼(size-7=28px, right-2=8px)과의 겹침 방지 */}
               <Badge
                 variant={isOpen ? "default" : "secondary"}
                 style={isOpen ? { background: session.store_color } : undefined}
+                className="mr-8"
               >
                 {isOpen ? "접수중" : "마감"}
               </Badge>
