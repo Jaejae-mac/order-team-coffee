@@ -8,6 +8,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import AccessCodeStep from "@/components/login/AccessCodeStep";
 import ProfileStep from "@/components/login/ProfileStep";
+import { useAuthStore } from "@/lib/stores/authStore";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -19,7 +20,9 @@ export default function LoginPage() {
   }
 
   function handleProfileSuccess() {
-    router.push("/");
+    // ProfileStep에서 setUser 완료 후 part가 저장되므로 getState()로 즉시 읽어 URL에 포함
+    const { part } = useAuthStore.getState();
+    router.push(`/?part=${part}`);
   }
 
   return (
