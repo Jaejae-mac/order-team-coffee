@@ -1,13 +1,13 @@
 /**
- * 인증 프록시 — 모든 요청에서 쿠키를 확인하고 미인증 사용자를 /login으로 보냄
- * Next.js 16+에서 middleware.ts 대신 proxy.ts 를 사용
+ * 인증 미들웨어 — 모든 요청에서 쿠키를 확인하고 미인증 사용자를 /login으로 보냄
+ * Next.js 15 표준: 파일명 middleware.ts, default export
  */
 import { NextRequest, NextResponse } from "next/server";
 
 // 인증 없이 접근 가능한 경로들
 const PUBLIC_PATHS = ["/login", "/api/auth/verify-code", "/api/auth/logout"];
 
-export function proxy(request: NextRequest) {
+export default function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
   // 공개 경로는 통과
@@ -34,6 +34,6 @@ export function proxy(request: NextRequest) {
 }
 
 export const config = {
-  // 프록시가 실행될 경로 (정적 파일 제외)
+  // 미들웨어가 실행될 경로 (정적 파일 제외)
   matcher: ["/((?!_next/static|_next/image|favicon.ico).*)"],
 };
