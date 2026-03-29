@@ -8,7 +8,7 @@ const geistSans = Geist({
 });
 
 export const metadata: Metadata = {
-  title: "팀 커피 주문",
+  title: "MoaCoffee",
   description: "팀원들과 함께하는 커피 주문 앱",
 };
 

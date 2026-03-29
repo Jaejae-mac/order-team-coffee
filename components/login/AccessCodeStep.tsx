@@ -8,7 +8,7 @@ import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { Eye, EyeOff, Lock } from "lucide-react";
+import { Coffee, Eye, EyeOff, Lock } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 
@@ -55,13 +55,15 @@ export default function AccessCodeStep({ onSuccess }: AccessCodeStepProps) {
 
   return (
     <div className="flex flex-col items-center gap-6">
-      {/* 자물쇠 아이콘 */}
-      <div className="w-16 h-16 rounded-full bg-white/10 flex items-center justify-center">
-        <Lock className="w-8 h-8 text-white" />
+      {/* 로고 영역
+          로고 추가 시: 아래 아이콘 영역을 <Image>로 교체하세요.
+          예) <Image src="/logo.png" alt="MoaCoffee" width={64} height={64} className="rounded-2xl" /> */}
+      <div className="w-16 h-16 rounded-2xl bg-white/10 flex items-center justify-center border border-white/20">
+        <Coffee className="w-8 h-8 text-white" />
       </div>
 
       <div className="text-center">
-        <h1 className="text-2xl font-bold text-white">팀 커피 주문</h1>
+        <h1 className="text-2xl font-bold text-white">MoaCoffee</h1>
         <p className="mt-1 text-sm text-white/60">접근 코드를 입력하세요</p>
       </div>
 

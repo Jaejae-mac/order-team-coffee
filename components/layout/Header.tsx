@@ -4,7 +4,7 @@
  */
 "use client";
 
-import { Loader2, LogOut } from "lucide-react";
+import { Coffee, Loader2, LogOut } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { PARTS } from "@/lib/constants/parts";
 import { useAuth } from "@/hooks/useAuth";
@@ -16,10 +16,14 @@ export default function Header() {
   return (
     <header className="sticky top-0 z-10 bg-white border-b border-gray-100 shadow-sm">
       <div className="max-w-2xl mx-auto px-4 h-14 flex items-center justify-between">
-        {/* 앱 이름 */}
-        <div className="flex items-center gap-2">
-          <span className="text-xl">☕</span>
-          <span className="font-bold text-gray-900">팀 커피 주문</span>
+        {/* 로고 + 앱 이름
+            로고 추가 시: <Image> 컴포넌트로 아래 아이콘 영역을 교체하세요.
+            예) <Image src="/logo.png" alt="MoaCoffee" width={32} height={32} className="rounded-lg" /> */}
+        <div className="flex items-center gap-2.5">
+          <div className="w-8 h-8 rounded-lg bg-amber-50 flex items-center justify-center flex-shrink-0 border border-amber-100">
+            <Coffee className="w-4 h-4 text-amber-600" />
+          </div>
+          <span className="font-bold text-gray-900 tracking-tight">MoaCoffee</span>
         </div>
 
         {/* 사용자 정보 + 로그아웃 */}
