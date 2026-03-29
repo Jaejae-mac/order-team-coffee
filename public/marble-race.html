@@ -397,6 +397,11 @@ function buildMap() {
   }
 
   function addBar(cx, cy, hw, angle) {
+    // 수평에 가까운 bar(|angle| < 0.18 rad ≈ 10°)는 공이 올라타 병목 유발
+    // → 최소 경사각을 강제해 공이 끝으로 미끄러지도록 보장
+    const MIN_ANGLE = 0.18;
+    if (Math.abs(angle) < MIN_ANGLE) angle = angle >= 0 ? MIN_ANGLE : -MIN_ANGLE;
+
     const x1 = cx - Math.cos(angle) * hw, y1 = cy - Math.sin(angle) * hw;
     const x2 = cx + Math.cos(angle) * hw, y2 = cy + Math.sin(angle) * hw;
     if (Math.min(x1, x2) < WALL_MARGIN || Math.max(x1, x2) > WORLD_W - WALL_MARGIN) return;
@@ -514,7 +519,11 @@ function buildMap() {
         addBar(midX - 52, vy, 46, ang);
         addBar(midX + 52, vy, 46, -ang);
       } else {
-        addBar(midX, vy, 58, 0.04);
+        // 수평 bar(angle≈0) 대신 중앙 범퍼 + 양쪽 경사 bar로 교체
+        // → 공이 bar 위에 걸리지 않고 좌·우로 분산
+        addBumper(midX, vy, 10);
+        addBar(midX - 42, vy, 32, 0.24);
+        addBar(midX + 42, vy, 32, -0.24);
       }
       addTriRows(top + v * vH, 3, vH * 0.24, 6, 0.06);
     }
@@ -598,9 +607,12 @@ function buildMap() {
     for (let i = 0; i < steps; i++) {
       const side  = i % 2 === 0;
       const y     = top + i * stepH + stepH * 0.35;
-      const cx    = side ? mx + uw * 0.31 : mx + uw * 0.69;
-      const hw    = uw * 0.27 + rand() * 16;
-      const angle = side ? -(0.06 + rand() * 0.08) : (0.06 + rand() * 0.08);
+      // cx를 바깥쪽으로 이동 → 중앙에 명시적 통과 공간 확보
+      const cx    = side ? mx + uw * 0.24 : mx + uw * 0.76;
+      // hw 축소: 좌우 bar가 중앙에서 겹치지 않도록
+      const hw    = uw * 0.20 + rand() * 10;
+      // 각도 증가(최소 0.20 rad ≈ 11°): addBar의 MIN_ANGLE과 별개로 명시적 보장
+      const angle = side ? -(0.20 + rand() * 0.12) : (0.20 + rand() * 0.12);
       addBar(cx, y, hw, angle);
       for (let p = 0; p < 3 + Math.floor(rand() * 3); p++)
         addPeg(mx + 12 + rand() * (uw - 24), y + stepH * 0.18 + rand() * stepH * 0.24);
