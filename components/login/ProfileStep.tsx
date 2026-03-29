@@ -52,13 +52,13 @@ export default function ProfileStep({ onSuccess }: ProfileStepProps) {
   return (
     <div className="flex flex-col items-center gap-6">
       {/* 사용자 아이콘 */}
-      <div className="w-16 h-16 rounded-full bg-white/10 flex items-center justify-center">
-        <User className="w-8 h-8 text-white" />
+      <div className="w-16 h-16 rounded-full bg-stone-100 flex items-center justify-center">
+        <User className="w-8 h-8 text-stone-500" />
       </div>
 
       <div className="text-center">
-        <h1 className="text-2xl font-bold text-white">내 정보 입력</h1>
-        <p className="mt-1 text-sm text-white/60">이름과 파트를 선택해주세요</p>
+        <h1 className="text-2xl font-bold text-gray-900">내 정보 입력</h1>
+        <p className="mt-1 text-sm text-gray-500">이름과 파트를 선택해주세요</p>
       </div>
 
       <form onSubmit={handleSubmit(onSubmit)} className="w-full flex flex-col gap-4">
@@ -67,7 +67,7 @@ export default function ProfileStep({ onSuccess }: ProfileStepProps) {
           <Input
             {...register("name")}
             placeholder="이름"
-            className="bg-white/10 border-white/20 text-white placeholder:text-white/40 h-12"
+            className="bg-white/70 border-stone-200 text-gray-900 placeholder:text-gray-400 h-12"
           />
           {errors.name && (
             <p className="text-red-400 text-sm mt-1">{errors.name.message}</p>
@@ -76,7 +76,7 @@ export default function ProfileStep({ onSuccess }: ProfileStepProps) {
 
         {/* 파트 선택 버튼 그룹 */}
         <div>
-          <p className="text-white/70 text-sm mb-2">소속 파트</p>
+          <p className="text-gray-500 text-sm mb-2">소속 파트</p>
           <Controller
             name="part"
             control={control}
@@ -93,8 +93,8 @@ export default function ProfileStep({ onSuccess }: ProfileStepProps) {
                       background:
                         selectedPart === part.id
                           ? part.color
-                          : "rgba(255,255,255,0.1)",
-                      color: "white",
+                          : "rgba(0,0,0,0.05)",
+                      color: selectedPart === part.id ? "white" : "#374151",
                       border:
                         selectedPart === part.id
                           ? `2px solid ${part.color}`
@@ -115,7 +115,7 @@ export default function ProfileStep({ onSuccess }: ProfileStepProps) {
         <Button
           type="submit"
           disabled={isPending}
-          className="h-12 bg-white text-gray-900 hover:bg-white/90 font-semibold mt-2"
+          className="h-12 bg-stone-900 text-white hover:bg-stone-700 font-semibold mt-2"
         >
           {isPending ? (
             // 페이지 이동 중 스피너 표시
