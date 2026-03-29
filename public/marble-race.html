@@ -362,7 +362,7 @@ function buildMap() {
 
   const style  = document.getElementById('mapStyle').value;
   const lenVal = parseInt(document.getElementById('mapLength').value, 10);
-  const lenMul = [0.6, 1, 1.5][lenVal - 1] || 1;
+  const lenMul = [1, 1.7, 2.6][lenVal - 1] || 1;
   const numSec = Math.round(BASE_SEC * lenMul);
 
   mapSeed = Math.floor(Math.random() * 999999);
@@ -375,12 +375,11 @@ function buildMap() {
   const uw = WORLD_W - mx * 2;
   const allObs = () => [...pegs, ...bumpers, ...bars];
 
-  /* ── 배치 가능 여부 체크 ── */
+  /* ── 공통 유틸 ────────────────────────────────── */
   function canPlace(x, y, r) {
     if (x - r < WALL_MARGIN || x + r > WORLD_W - WALL_MARGIN) return false;
     for (const e of allObs()) {
-      const ex = e.x !== undefined ? e.x : e.cx;
-      const ey = e.y !== undefined ? e.y : e.cy;
+      const ex = e.x ?? e.cx, ey = e.y ?? e.cy;
       const gap = e.type === 'bar' ? PEG_MIN_GAP + (e.hw || 0) : PEG_MIN_GAP;
       if (Math.hypot(ex - x, ey - y) < gap) return false;
     }
@@ -400,18 +399,17 @@ function buildMap() {
   function addBar(cx, cy, hw, angle) {
     const x1 = cx - Math.cos(angle) * hw, y1 = cy - Math.sin(angle) * hw;
     const x2 = cx + Math.cos(angle) * hw, y2 = cy + Math.sin(angle) * hw;
-    if (Math.min(x1,x2) < WALL_MARGIN || Math.max(x1,x2) > WORLD_W - WALL_MARGIN) return;
+    if (Math.min(x1, x2) < WALL_MARGIN || Math.max(x1, x2) > WORLD_W - WALL_MARGIN) return;
     const tooClose = allObs().some(e => {
-      const ex = e.x !== undefined ? e.x : e.cx;
-      const ey = e.y !== undefined ? e.y : e.cy;
+      const ex = e.x ?? e.cx, ey = e.y ?? e.cy;
       return Math.hypot(ex - cx, ey - cy) < hw + PEG_MIN_GAP;
     });
     if (!tooClose)
       bars.push({ type: 'bar', cx, cy, x1, y1, x2, y2, hw, angle, flash: 0 });
   }
 
-  /* ── 삼각격자 행 생성 (수직 레인 차단 핵심) ── */
-  function addTriRows(topY, numRows, rowH, cols, dropRate) {
+  /* 월드 전체 너비 기준 삼각격자 행 */
+  function addTriRows(topY, numRows, rowH, cols, dropRate = 0) {
     for (let row = 0; row < numRows; row++) {
       const even = row % 2 === 0;
       const c    = even ? cols : cols - 1;
@@ -425,7 +423,22 @@ function buildMap() {
     }
   }
 
-  /* ── 수직 레인 빈 구간 보충 ── */
+  /* 중심 x + 폭 지정 삼각격자 행 (corridor·twist 전용) */
+  function addTriRowsAt(topY, numRows, rowH, cols, centerX, totalW, dropRate = 0) {
+    for (let row = 0; row < numRows; row++) {
+      const even = row % 2 === 0;
+      const c    = even ? cols : Math.max(1, cols - 1);
+      const sp   = totalW / Math.max(1, even ? cols - 1 : cols - 0.5);
+      const offX = even ? centerX - totalW / 2 : centerX - totalW / 2 + sp * 0.5;
+      const y    = topY + row * rowH;
+      for (let ci = 0; ci < c; ci++) {
+        if (rand() < dropRate) continue;
+        addPeg(offX + ci * sp, y);
+      }
+    }
+  }
+
+  /* 수직 레인 빈 구간 보충 */
   function fillVerticalGaps(topY, botY, numLanes = 8) {
     const laneW = uw / numLanes;
     for (let lane = 0; lane < numLanes; lane++) {
@@ -435,83 +448,86 @@ function buildMap() {
       );
       if (!hasPeg) {
         const fy = topY + (botY - topY) * (0.3 + rand() * 0.4);
-        addPeg(lx + (rand() - 0.5) * 12, fy);
+        addPeg(lx + (rand() - 0.5) * laneW * 0.3, fy);
       }
     }
   }
 
-  /* ══ 섹션 테마 함수 ══ */
+  /* ══════════════════════════════════════════════════
+     섹션 테마 15종
+  ══════════════════════════════════════════════════ */
+
+  /* 1. 표준 삼각격자 */
   function secTri(top) {
-    addTriRows(top, 10, SECTION_H / 10, 7, 0.04);
+    const cols = 6 + (rand() < 0.4 ? 1 : 0);
+    addTriRows(top, 10, SECTION_H / 10, cols, 0.03);
     fillVerticalGaps(top, top + SECTION_H);
   }
 
+  /* 2. 고밀도 격자 */
   function secDense(top) {
-    addTriRows(top, 12, SECTION_H / 12, 8, 0.02);
+    addTriRows(top, 13, SECTION_H / 13, 8 + (rand() < 0.35 ? 1 : 0), 0.02);
     fillVerticalGaps(top, top + SECTION_H, 10);
   }
 
+  /* 3. 깔때기 (중앙 수렴 → 범퍼 → 분산) */
   function secFunnel(top) {
-    const midX = WORLD_W * 0.5;
+    const midX = WORLD_W * 0.5 + (rand() - 0.5) * uw * 0.12;
     const midY = top + SECTION_H * 0.5;
     for (let row = 0; row < 5; row++) {
-      const t   = row / 4;
-      const y   = top + row * (SECTION_H * 0.45 / 5);
-      const lx  = mx + uw * 0.05 + uw * 0.3 * t;
-      const rx  = WORLD_W - lx;
-      const sp  = (rx - lx) / 5;
+      const t = row / 4;
+      const y = top + row * (SECTION_H * 0.42 / 5);
+      const lx = mx + uw * 0.05 + uw * 0.28 * t;
+      const rx = WORLD_W - lx;
+      const sp = (rx - lx) / 5;
       for (let c = 0; c <= 5; c++) addPeg(lx + c * sp, y);
     }
-    addBar(midX - 40, midY, 45, -0.5);
-    addBar(midX + 40, midY, 45, 0.5);
-    addTriRows(top + SECTION_H * 0.6, 4, SECTION_H * 0.1, 6, 0.05);
+    addBar(midX - 65, midY - 12, 52, 0.46 + rand() * 0.08);
+    addBar(midX + 65, midY - 12, 52, -(0.46 + rand() * 0.08));
+    addTriRows(midY + 22, 4, (SECTION_H * 0.42) / 4, 6, 0.05);
+    addBumper(midX, midY + 55, 13);
     fillVerticalGaps(top, top + SECTION_H, 7);
   }
 
+  /* 4. 무작위 산포 */
   function secScatter(top) {
-    const target = 32 + Math.floor(rand() * 12);
+    const target = 30 + Math.floor(rand() * 16);
     let tries = 0;
-    while (pegs.filter(p => p.y >= top && p.y < top + SECTION_H).length < target && tries++ < 400) {
-      const x = mx + rand() * uw;
-      const y = top + rand() * SECTION_H;
-      addPeg(x, y);
-    }
-    for (let i = 0; i < 3 + Math.floor(rand() * 2); i++) {
-      const cx = mx + 40 + rand() * (uw - 80);
-      const cy = top + 30 + rand() * (SECTION_H - 60);
-      addBar(cx, cy, 28 + rand() * 18, (rand() - 0.5) * 1.1);
-    }
-    addBumper(mx + 40 + rand() * (uw - 80), top + 60 + rand() * (SECTION_H - 120), 12);
+    while (pegs.filter(p => p.y >= top && p.y < top + SECTION_H).length < target && tries++ < 500)
+      addPeg(mx + rand() * uw, top + rand() * SECTION_H);
+    for (let i = 0; i < 4 + Math.floor(rand() * 3); i++)
+      addBar(mx + 28 + rand() * (uw - 56), top + 18 + rand() * (SECTION_H - 36), 20 + rand() * 24, (rand() - 0.5) * 1.3);
+    for (let i = 0; i < 2; i++)
+      addBumper(mx + 22 + rand() * (uw - 44), top + 48 + rand() * (SECTION_H - 96), 11 + rand() * 4);
     fillVerticalGaps(top, top + SECTION_H, 8);
   }
 
+  /* 5. V자 반복 */
   function secVShape(top) {
-    const numV = 3;
-    const vH   = SECTION_H / numV;
+    const numV = 3, vH = SECTION_H / numV;
     for (let v = 0; v < numV; v++) {
-      const midX = WORLD_W * 0.5;
+      const midX = WORLD_W * 0.5 + (rand() - 0.5) * uw * 0.1;
       const vy   = top + v * vH + vH * 0.3;
       const flip = v % 2 === 0;
-      const ang  = 0.4 + rand() * 0.15;
+      const ang  = 0.38 + rand() * 0.18;
       if (flip) {
-        addBar(midX - 55, vy, 48, ang);
-        addBar(midX + 55, vy, 48, -ang);
+        addBar(midX - 52, vy, 46, ang);
+        addBar(midX + 52, vy, 46, -ang);
       } else {
-        addBar(midX, vy, 60, 0.05);
+        addBar(midX, vy, 58, 0.04);
       }
-      addTriRows(top + v * vH, 3, vH * 0.25, 6, 0.05);
+      addTriRows(top + v * vH, 3, vH * 0.24, 6, 0.06);
     }
     fillVerticalGaps(top, top + SECTION_H, 7);
   }
 
+  /* 6. 지그재그 통로 */
   function secWide(top) {
     const rowH = SECTION_H / 9;
     for (let row = 0; row < 9; row++) {
-      const even    = row % 2 === 0;
-      const y       = top + row * rowH;
+      const even = row % 2 === 0, y = top + row * rowH;
       const gapSide = even ? 'left' : 'right';
-      const cols    = 7;
-      const sp      = uw / (cols - 1);
+      const cols = 7, sp = uw / (cols - 1);
       for (let c = 0; c < cols; c++) {
         const x = mx + c * sp;
         if (gapSide === 'left'  && c < 2) continue;
@@ -519,59 +535,219 @@ function buildMap() {
         addPeg(x, y);
       }
     }
+    for (let row = 0; row < 3; row++) {
+      const y = top + row * (SECTION_H / 3) + SECTION_H / 6;
+      const side = row % 2 === 0;
+      addBar(side ? mx + 28 : WORLD_W - mx - 28, y, 33, side ? -0.52 : 0.52);
+    }
     fillVerticalGaps(top, top + SECTION_H, 6);
   }
 
+  /* 7. 오프셋 열 */
   function secOffset(top) {
     const rowH = SECTION_H / 10;
     for (let row = 0; row < 10; row++) {
-      const y      = top + row * rowH;
-      const cols   = 6 + (row % 3 === 0 ? 1 : 0);
-      const jitter = (rand() - 0.5) * 20;
-      const sp     = (uw - 20) / (cols - 1);
+      const y = top + row * rowH;
+      const cols = 6 + (row % 3 === 0 ? 1 : 0);
+      const jitter = (rand() - 0.5) * 22;
+      const sp = (uw - 20) / (cols - 1);
       for (let c = 0; c < cols; c++) {
         const x = mx + 10 + jitter + c * sp;
-        if (x > WALL_MARGIN && x < WORLD_W - WALL_MARGIN)
-          addPeg(x, y);
+        if (x > WALL_MARGIN && x < WORLD_W - WALL_MARGIN) addPeg(x, y);
       }
     }
-    addBumper(mx + 50 + rand() * (uw * 0.3), top + 60 + rand() * (SECTION_H * 0.3), 12);
-    addBumper(mx + uw * 0.55 + rand() * (uw * 0.3), top + SECTION_H * 0.55 + rand() * (SECTION_H * 0.3), 12);
+    addBumper(mx + 48 + rand() * (uw * 0.32), top + 55 + rand() * (SECTION_H * 0.28), 12);
+    addBumper(mx + uw * 0.54 + rand() * (uw * 0.3), top + SECTION_H * 0.54 + rand() * (SECTION_H * 0.3), 12);
     fillVerticalGaps(top, top + SECTION_H, 8);
   }
 
-  /* ── 맵 스타일별 섹션 조합 ── */
-  const themesByStyle = {
-    standard: ['tri','tri','funnel','tri','vshape','tri','wide','tri'],
-    dense:    ['dense','dense','funnel','dense','dense','scatter','dense','dense'],
-    chaos:    ['scatter','vshape','scatter','funnel','scatter','offset','scatter','vshape'],
-    zigzag:   ['wide','wide','funnel','vshape','wide','offset','wide','funnel'],
-  };
-  const themePool = themesByStyle[style] || themesByStyle.standard;
-  const themeFns  = { tri:secTri, dense:secDense, funnel:secFunnel, scatter:secScatter, vshape:secVShape, wide:secWide, offset:secOffset };
-
-  for (let sec = 0; sec < numSec; sec++) {
-    const top  = 80 + sec * SECTION_H;
-    const name = themePool[sec % themePool.length];
-    (themeFns[name] || secTri)(top);
+  /* 8. 좁은 복도 — lean: -1=좌, 0=중앙, 1=우 [신규] */
+  function secCorridor(top, lean) {
+    const centerX = WORLD_W * 0.5 + lean * uw * 0.22;
+    const halfGap = 46 + rand() * 26;
+    for (let i = 0; i < 5; i++) {
+      const y = top + (i + 0.5) * (SECTION_H / 5);
+      const lw = centerX - halfGap - 8 - rand() * 8;
+      const rw = centerX + halfGap + 8 + rand() * 8;
+      if (lw - 30 > WALL_MARGIN)
+        addBar(lw, y, 24 + rand() * 18, 0.22 + rand() * 0.18);
+      if (rw + 30 < WORLD_W - WALL_MARGIN)
+        addBar(rw, y, 24 + rand() * 18, -(0.22 + rand() * 0.18));
+    }
+    addTriRowsAt(top, 8, SECTION_H / 9, 4, centerX, halfGap * 1.55, 0.08);
+    fillVerticalGaps(top, top + SECTION_H, 6);
   }
 
-  /* ── 전체 수직 레인 최종 보충 ── */
+  /* 9. 사인 웨이브 핀 분포 [신규] */
+  function secWave(top) {
+    const rows = 12, rowH = SECTION_H / rows;
+    const freq = 1.5 + rand() * 1.5, amp = uw * 0.21;
+    for (let row = 0; row < rows; row++) {
+      const t  = row / (rows - 1);
+      const cx = WORLD_W * 0.5 + Math.sin(t * Math.PI * 2 * freq) * amp;
+      const cols = 5 + (row % 4 === 0 ? 1 : 0);
+      const sp = (uw * 0.54) / Math.max(1, cols - 1);
+      for (let c = 0; c < cols; c++) addPeg(cx - uw * 0.27 + c * sp, top + row * rowH);
+    }
+    fillVerticalGaps(top, top + SECTION_H, 7);
+  }
+
+  /* 10. 폭포형 플랫폼 — 좌우 교대 경사 bar [신규] */
+  function secCascade(top) {
+    const steps = 6, stepH = SECTION_H / steps;
+    for (let i = 0; i < steps; i++) {
+      const side  = i % 2 === 0;
+      const y     = top + i * stepH + stepH * 0.35;
+      const cx    = side ? mx + uw * 0.31 : mx + uw * 0.69;
+      const hw    = uw * 0.27 + rand() * 16;
+      const angle = side ? -(0.06 + rand() * 0.08) : (0.06 + rand() * 0.08);
+      addBar(cx, y, hw, angle);
+      for (let p = 0; p < 3 + Math.floor(rand() * 3); p++)
+        addPeg(mx + 12 + rand() * (uw - 24), y + stepH * 0.18 + rand() * stepH * 0.24);
+    }
+    fillVerticalGaps(top, top + SECTION_H, 7);
+  }
+
+  /* 11. 나선형 핀 배치 [신규] */
+  function secSpiral(top) {
+    const cx = WORLD_W * 0.5 + (rand() - 0.5) * uw * 0.14;
+    const cy = top + SECTION_H * 0.5;
+    const maxR = uw * 0.35, turns = 2 + rand() * 1.5, pts = 30 + Math.floor(rand() * 12);
+    for (let i = 0; i < pts; i++) {
+      const t = i / pts, a = t * Math.PI * 2 * turns, r = maxR * (0.12 + t * 0.88);
+      addPeg(cx + Math.cos(a) * r, cy + Math.sin(a) * r * 0.58);
+    }
+    addBumper(cx, cy, 11 + rand() * 4);
+    fillVerticalGaps(top, top + SECTION_H, 7);
+  }
+
+  /* 12. 핀볼 — 범퍼 밀집 [신규] */
+  function secPinball(top) {
+    const numB = 5 + Math.floor(rand() * 3), placed = [];
+    for (let att = 0; att < numB * 5 && placed.length < numB; att++) {
+      const x = mx + 22 + rand() * (uw - 44), y = top + 32 + rand() * (SECTION_H - 64), r = 11 + rand() * 7;
+      if (!placed.some(p => Math.hypot(p.x - x, p.y - y) < r + p.r + PEG_MIN_GAP + 6)) {
+        addBumper(x, y, r);
+        placed.push({ x, y, r });
+      }
+    }
+    addTriRows(top, 5, SECTION_H / 7, 5, 0.2);
+    for (let i = 0; i < 3 + Math.floor(rand() * 2); i++)
+      addBar(mx + 26 + rand() * (uw - 52), top + 16 + rand() * (SECTION_H - 32), 18 + rand() * 18, (rand() - 0.5) * 1.1);
+    fillVerticalGaps(top, top + SECTION_H, 7);
+  }
+
+  /* 13. 이중 나선 (Double Helix) [신규] */
+  function secHelix(top) {
+    const rows = 14, rowH = SECTION_H / rows, r = uw * 0.27;
+    for (let row = 0; row < rows; row++) {
+      const a = (row / (rows - 1)) * Math.PI * 2.5;
+      const y = top + row * rowH;
+      const x1 = WORLD_W * 0.5 + Math.cos(a) * r;
+      const x2 = WORLD_W * 0.5 + Math.cos(a + Math.PI) * r;
+      addPeg(x1, y); addPeg(x2, y);
+      if (row % 4 === 0)
+        for (let b = 1; b <= 2; b++) addPeg(x1 + (x2 - x1) * b / 3, y);
+    }
+    fillVerticalGaps(top, top + SECTION_H, 7);
+  }
+
+  /* 14. 다이아몬드 격자 [신규] */
+  function secDiamond(top) {
+    const cols = 5, rows = 8, cellW = uw / cols, cellH = SECTION_H / rows;
+    for (let r = 0; r < rows; r++) {
+      for (let c = 0; c < cols; c++) {
+        const cx = mx + c * cellW + cellW * 0.5, cy = top + r * cellH + cellH * 0.5;
+        const dr = Math.min(cellW, cellH) * 0.32;
+        if (rand() > 0.12) addPeg(cx,      cy - dr);
+        if (rand() > 0.12) addPeg(cx + dr, cy);
+        if (rand() > 0.12) addPeg(cx,      cy + dr);
+        if (rand() > 0.12) addPeg(cx - dr, cy);
+      }
+    }
+    fillVerticalGaps(top, top + SECTION_H, 8);
+  }
+
+  /* 15. 방향 전환 (dir: +1=우회전, -1=좌회전) [신규] */
+  function secTwist(top, dir) {
+    addTriRowsAt(top, 3, SECTION_H * 0.17 / 3, 5, WORLD_W * 0.5, uw * 0.58, 0.05);
+    const transY = top + SECTION_H * 0.37, transX = WORLD_W * 0.5 - dir * uw * 0.12;
+    addBar(transX, transY, uw * 0.3, dir * 0.52);
+    addBumper(WORLD_W * 0.5 + dir * uw * 0.18, transY + 20, 12);
+    const botCX = WORLD_W * 0.5 + dir * uw * 0.2;
+    addTriRowsAt(top + SECTION_H * 0.52, 4, SECTION_H * 0.22 / 4, 5, botCX, uw * 0.5, 0.05);
+    addBar(WORLD_W * 0.5 + dir * uw * 0.07, top + SECTION_H * 0.65, uw * 0.22, dir * 0.28);
+    fillVerticalGaps(top, top + SECTION_H, 7);
+  }
+
+  /* ══════════════════════════════════════════════════
+     SmartPicker — 최근 3종 제외 후보에서 랜덤 선택
+     → 같은 테마가 3번 이상 연속 등장 불가
+  ══════════════════════════════════════════════════ */
+  const recentThemes = [];
+  function pickTheme(pool) {
+    const forbidden  = new Set(recentThemes.slice(-3));
+    const candidates = pool.filter(t => !forbidden.has(t));
+    const src  = candidates.length >= 2 ? candidates : pool;
+    const pick = src[Math.floor(rand() * src.length)];
+    recentThemes.push(pick);
+    if (recentThemes.length > 6) recentThemes.shift();
+    return pick;
+  }
+
+  /* ══════════════════════════════════════════════════
+     맵 스타일별 섹션 풀 (각 스타일 15종 이상)
+     - standard : 다양한 테마를 고르게 배합
+     - dense    : 핀 밀도 높은 테마 위주
+     - chaos    : 예측 불가 조합 + 방향 전환 多
+     - zigzag   : 좌우 방향 전환·통로 중심
+  ══════════════════════════════════════════════════ */
+  const themesByStyle = {
+    standard: ['tri','funnel','vshape','corridor','cascade','helix','diamond','wave','wide','spiral','offset','tri','pinball','corridor','funnel','wave'],
+    dense:    ['dense','helix','pinball','dense','spiral','funnel','cascade','dense','diamond','helix','pinball','dense','offset','scatter'],
+    chaos:    ['scatter','twist','spiral','pinball','wave','corridor','scatter','helix','diamond','vshape','twist','scatter','pinball','wave','corridor','twist'],
+    zigzag:   ['wide','corridor','twist','cascade','diamond','wave','spiral','wide','twist','corridor','cascade','helix','vshape','corridor','twist'],
+  };
+  const pool = themesByStyle[style] || themesByStyle.standard;
+
+  /* ── 섹션 순차 생성 ────────────────────────────── */
+  for (let sec = 0; sec < numSec; sec++) {
+    const top   = 80 + sec * SECTION_H;
+    const theme = pickTheme(pool);
+    switch (theme) {
+      case 'tri':      secTri(top);      break;
+      case 'dense':    secDense(top);    break;
+      case 'funnel':   secFunnel(top);   break;
+      case 'scatter':  secScatter(top);  break;
+      case 'vshape':   secVShape(top);   break;
+      case 'wide':     secWide(top);     break;
+      case 'offset':   secOffset(top);   break;
+      case 'corridor': secCorridor(top, [-1, 0, 1][Math.floor(rand() * 3)]); break;
+      case 'wave':     secWave(top);     break;
+      case 'cascade':  secCascade(top);  break;
+      case 'spiral':   secSpiral(top);   break;
+      case 'pinball':  secPinball(top);  break;
+      case 'helix':    secHelix(top);    break;
+      case 'diamond':  secDiamond(top);  break;
+      case 'twist':    secTwist(top, rand() < 0.5 ? 1 : -1); break;
+      default:         secTri(top);
+    }
+  }
+
+  /* ── 최종 직선 낙하 방지 패스 ─────────────────── */
   const totalLanes = 9;
   for (let lane = 0; lane < totalLanes; lane++) {
     const lx = mx + (uw / totalLanes) * (lane + 0.5);
     for (let sec = 0; sec < numSec; sec++) {
-      const top = 80 + sec * SECTION_H;
-      const bot = top + SECTION_H;
+      const top = 80 + sec * SECTION_H, bot = top + SECTION_H;
       const inLane = pegs.filter(p =>
         p.y >= top && p.y < bot && Math.abs(p.x - lx) < (uw / totalLanes) * 0.7
       );
-      if (inLane.length < 2) {
+      if (inLane.length < 2)
         for (let fill = 0; fill < 2; fill++) {
           const fy = top + (SECTION_H / 3) * (fill + 0.5) + (rand() - 0.5) * 20;
           addPeg(lx + (rand() - 0.5) * 12, fy);
         }
-      }
     }
   }
 
