@@ -13,6 +13,7 @@ import SessionList from "@/components/sessions/SessionList";
 import CreateSessionModal from "@/components/sessions/CreateSessionModal";
 import FloatingActionButton from "@/components/layout/FloatingActionButton";
 import GameButton from "@/components/layout/GameButton";
+import GameModal from "@/components/layout/GameModal";
 import { useSessionStore } from "@/lib/stores/sessionStore";
 import { useAuthStore } from "@/lib/stores/authStore";
 import { useRealtimeSessions } from "@/hooks/useRealtimeSessions";
@@ -31,6 +32,7 @@ export default function MainDashboard({
   const { name, part, isLoggedIn } = useAuthStore();
   const { sessions, setSessions, addSession } = useSessionStore();
   const [createModalOpen, setCreateModalOpen] = useState(false);
+  const [gameOpen, setGameOpen] = useState(false);
 
   // 로그인 상태가 없으면 /login으로 이동 (세션스토리지 초기화 시)
   useEffect(() => {
@@ -63,7 +65,10 @@ export default function MainDashboard({
       </main>
 
       {/* 게임 버튼 (+ 버튼 위) */}
-      <GameButton onClick={() => {}} />
+      <GameButton onClick={() => setGameOpen(true)} />
+
+      {/* 마블 레이스 게임 전체화면 모달 */}
+      <GameModal open={gameOpen} onClose={() => setGameOpen(false)} />
 
       {/* 새 세션 생성 FAB */}
       <FloatingActionButton onClick={() => setCreateModalOpen(true)} />

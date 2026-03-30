@@ -8,7 +8,7 @@ import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { Eye, EyeOff, Lock } from "lucide-react";
+import { Coffee, Eye, EyeOff } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 
@@ -55,14 +55,19 @@ export default function AccessCodeStep({ onSuccess }: AccessCodeStepProps) {
 
   return (
     <div className="flex flex-col items-center gap-6">
-      {/* 자물쇠 아이콘 */}
-      <div className="w-16 h-16 rounded-full bg-white/10 flex items-center justify-center">
-        <Lock className="w-8 h-8 text-white" />
+      {/* 로고 영역
+          로고 추가 시: 아래 아이콘 영역을 <Image>로 교체하세요.
+          예) <Image src="/logo.png" alt="MoaCoffee" width={64} height={64} className="rounded-2xl" /> */}
+      {/* 로고 영역
+          로고 추가 시: 아래 아이콘 영역을 <Image>로 교체하세요.
+          예) <Image src="/logo.png" alt="MoaCoffee" width={64} height={64} className="rounded-2xl" /> */}
+      <div className="w-16 h-16 rounded-2xl bg-amber-50 flex items-center justify-center border border-amber-100">
+        <Coffee className="w-8 h-8 text-amber-600" />
       </div>
 
       <div className="text-center">
-        <h1 className="text-2xl font-bold text-white">팀 커피 주문</h1>
-        <p className="mt-1 text-sm text-white/60">접근 코드를 입력하세요</p>
+        <h1 className="text-2xl font-bold text-gray-900">MoaCoffee</h1>
+        <p className="mt-1 text-sm text-gray-500">접근 코드를 입력하세요</p>
       </div>
 
       <form onSubmit={handleSubmit(onSubmit)} className="w-full flex flex-col gap-3">
@@ -71,14 +76,14 @@ export default function AccessCodeStep({ onSuccess }: AccessCodeStepProps) {
             {...register("code")}
             type={showCode ? "text" : "password"}
             placeholder="접근 코드"
-            className="bg-white/10 border-white/20 text-white placeholder:text-white/40 pr-10 h-12"
+            className="bg-white/70 border-stone-200 text-gray-900 placeholder:text-gray-400 pr-10 h-12"
             autoComplete="off"
           />
           {/* 코드 표시/숨기기 토글 버튼 */}
           <button
             type="button"
             onClick={() => setShowCode((v) => !v)}
-            className="absolute right-3 top-1/2 -translate-y-1/2 text-white/60 hover:text-white transition-colors"
+            className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors"
           >
             {showCode ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
           </button>
@@ -86,16 +91,16 @@ export default function AccessCodeStep({ onSuccess }: AccessCodeStepProps) {
 
         {/* 유효성 검사 오류 */}
         {errors.code && (
-          <p className="text-red-400 text-sm">{errors.code.message}</p>
+          <p className="text-red-500 text-sm">{errors.code.message}</p>
         )}
         {serverError && (
-          <p className="text-red-400 text-sm">{serverError}</p>
+          <p className="text-red-500 text-sm">{serverError}</p>
         )}
 
         <Button
           type="submit"
           disabled={isSubmitting}
-          className="h-12 bg-white text-gray-900 hover:bg-white/90 font-semibold"
+          className="h-12 bg-stone-900 text-white hover:bg-stone-700 font-semibold"
         >
           {isSubmitting ? "확인 중..." : "입장"}
         </Button>

@@ -29,17 +29,17 @@ export default function LoginPage() {
     <main
       className="min-h-screen flex items-center justify-center p-4"
       style={{
-        background: "linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%)",
+        background: "linear-gradient(150deg, #fefdfb 0%, #f5ede0 60%, #ede3d2 100%)",
       }}
     >
       {/* 글래스모피즘 카드 */}
       <div
         className="w-full max-w-sm p-10 rounded-3xl"
         style={{
-          background: "rgba(255,255,255,0.06)",
-          backdropFilter: "blur(20px)",
-          border: "1px solid rgba(255,255,255,0.12)",
-          boxShadow: "0 25px 50px rgba(0,0,0,0.5)",
+          background: "rgba(255,255,255,0.65)",
+          backdropFilter: "blur(24px)",
+          border: "1px solid rgba(255,255,255,0.85)",
+          boxShadow: "0 20px 60px rgba(180,150,110,0.13), 0 4px 16px rgba(180,150,110,0.08)",
         }}
       >
         {/* 단계에 따라 컴포넌트 전환 */}
