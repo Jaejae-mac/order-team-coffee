@@ -130,8 +130,8 @@ export default function SessionCard({
           className="absolute right-0 top-0 bottom-0 flex flex-col items-center justify-center gap-1 bg-red-500 text-white disabled:opacity-60"
           style={{
             width: DELETE_BTN_WIDTH,
-            // 스와이프하지 않은 상태에서는 완전히 숨김 (overflow-hidden + rounded 코너 간격으로 인한 노출 방지)
-            visibility: swipeOffset < 0 ? 'visible' : 'hidden',
+            // 스와이프 전에는 display:none으로 완전히 제거 — visibility/opacity로는 rounded 코너 틈새 노출이 완전히 방지되지 않음
+            display: (swipeOffset < 0 || isDeleting) ? 'flex' : 'none',
           }}
         >
           {isDeleting
