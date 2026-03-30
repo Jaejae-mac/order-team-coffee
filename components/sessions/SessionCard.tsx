@@ -148,7 +148,7 @@ export default function SessionCard({
         onTouchStart={isMySession ? handleTouchStart : undefined}
         onTouchMove={isMySession ? handleTouchMove : undefined}
         onTouchEnd={isMySession ? handleTouchEnd : undefined}
-        className="relative w-full text-left rounded-2xl p-4 transition-shadow hover:shadow-lg active:opacity-90"
+        className="relative w-full text-left p-4 transition-shadow hover:shadow-lg active:opacity-90"
         style={{
           background: session.store_bg,
           border: `1.5px solid ${session.store_color}20`,
