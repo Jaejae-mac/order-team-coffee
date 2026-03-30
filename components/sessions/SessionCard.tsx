@@ -128,7 +128,11 @@ export default function SessionCard({
           onClick={handleDelete}
           disabled={isDeleting}
           className="absolute right-0 top-0 bottom-0 flex flex-col items-center justify-center gap-1 bg-red-500 text-white disabled:opacity-60"
-          style={{ width: DELETE_BTN_WIDTH }}
+          style={{
+            width: DELETE_BTN_WIDTH,
+            // 스와이프하지 않은 상태에서는 완전히 숨김 (overflow-hidden + rounded 코너 간격으로 인한 노출 방지)
+            visibility: swipeOffset < 0 ? 'visible' : 'hidden',
+          }}
         >
           {isDeleting
             ? <Loader2 className="w-5 h-5 animate-spin" />
