@@ -119,8 +119,9 @@ export default function SessionCard({
   }
 
   return (
-    // overflow-hidden으로 삭제 버튼이 카드 영역 밖으로 보이지 않게 처리
-    <div className="relative overflow-hidden rounded-2xl">
+    // clip-path로 모든 자식을 동일한 둥근 사각형으로 클리핑
+    // overflow-hidden + rounded 방식은 delete button 존재 시 우측 radius가 두꺼워 보이는 렌더링 아티팩트 발생
+    <div className="relative" style={{ clipPath: 'inset(0 0 0 0 round 1rem)' }}>
 
       {/* 삭제 버튼 — 우측에 절대 위치, 스와이프 시 노출 (본인 세션만 렌더링) */}
       {isMySession && (
@@ -130,8 +131,6 @@ export default function SessionCard({
           className="absolute right-0 top-0 bottom-0 flex flex-col items-center justify-center gap-1 bg-red-500 text-white disabled:opacity-60"
           style={{
             width: DELETE_BTN_WIDTH,
-            // 스와이프 전에는 display:none으로 완전히 제거 — visibility/opacity로는 rounded 코너 틈새 노출이 완전히 방지되지 않음
-            display: (swipeOffset < 0 || isDeleting) ? 'flex' : 'none',
           }}
         >
           {isDeleting
