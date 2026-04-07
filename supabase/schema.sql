@@ -65,3 +65,73 @@ CREATE POLICY "service_all_sessions" ON sessions
 
 CREATE POLICY "service_all_orders" ON orders
   FOR ALL TO service_role USING (true) WITH CHECK (true);
+
+
+-- ============================================================
+-- 투표 기능 스키마
+-- ============================================================
+
+-- ── 투표 테이블 ──────────────────────────────────────────────
+-- 투표를 모으는 단위. 한 투표 = 하나의 설문/의사결정
+CREATE TABLE IF NOT EXISTS polls (
+  id           UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
+  title        TEXT        NOT NULL,
+  description  TEXT        NOT NULL DEFAULT '',
+  creator      TEXT        NOT NULL,       -- 투표를 만든 사람의 이름
+  creator_part TEXT        NOT NULL CHECK (creator_part IN ('channel', 'business', 'pay')),
+  status       TEXT        NOT NULL DEFAULT 'open' CHECK (status IN ('open', 'closed')),
+  closes_at    TIMESTAMPTZ NOT NULL,       -- 마감 기한 (이 시각 이후 lazy close 처리)
+  created_at   TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+-- ── 투표 선택지 테이블 ───────────────────────────────────────
+-- 각 투표에 속하는 선택지. 투표 삭제 시 함께 삭제됨
+CREATE TABLE IF NOT EXISTS poll_options (
+  id         UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
+  poll_id    UUID        NOT NULL REFERENCES polls(id) ON DELETE CASCADE,
+  label      TEXT        NOT NULL,
+  position   INT         NOT NULL DEFAULT 0,  -- 표시 순서
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+-- ── 투표 기록 테이블 ─────────────────────────────────────────
+-- 누가 어떤 선택지에 투표했는지 기록. 투표 삭제 시 함께 삭제됨
+CREATE TABLE IF NOT EXISTS poll_votes (
+  id         UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
+  poll_id    UUID        NOT NULL REFERENCES polls(id) ON DELETE CASCADE,
+  option_id  UUID        NOT NULL REFERENCES poll_options(id) ON DELETE CASCADE,
+  voter_name TEXT        NOT NULL,
+  voter_part TEXT        NOT NULL CHECK (voter_part IN ('channel', 'business', 'pay')),
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  UNIQUE (poll_id, voter_name)   -- DB 레벨에서 1인 1표 보장
+);
+
+-- ── 인덱스 ────────────────────────────────────────────────────
+CREATE INDEX IF NOT EXISTS idx_polls_creator_part ON polls(creator_part);
+CREATE INDEX IF NOT EXISTS idx_polls_status       ON polls(status);
+CREATE INDEX IF NOT EXISTS idx_polls_closes_at    ON polls(closes_at);
+CREATE INDEX IF NOT EXISTS idx_poll_options_poll  ON poll_options(poll_id);
+CREATE INDEX IF NOT EXISTS idx_poll_votes_poll    ON poll_votes(poll_id);
+
+-- ── RLS(행 수준 보안) 활성화 ─────────────────────────────────
+ALTER TABLE polls        ENABLE ROW LEVEL SECURITY;
+ALTER TABLE poll_options ENABLE ROW LEVEL SECURITY;
+ALTER TABLE poll_votes   ENABLE ROW LEVEL SECURITY;
+
+-- 기존 정책이 있으면 먼저 삭제 (재실행 시 충돌 방지)
+DROP POLICY IF EXISTS "anon_read_polls"          ON polls;
+DROP POLICY IF EXISTS "service_all_polls"        ON polls;
+DROP POLICY IF EXISTS "anon_read_poll_options"   ON poll_options;
+DROP POLICY IF EXISTS "service_all_poll_options" ON poll_options;
+DROP POLICY IF EXISTS "anon_read_poll_votes"     ON poll_votes;
+DROP POLICY IF EXISTS "service_all_poll_votes"   ON poll_votes;
+
+-- 익명 사용자 읽기 정책 (Realtime 구독에 필요)
+CREATE POLICY "anon_read_polls"        ON polls        FOR SELECT TO anon USING (true);
+CREATE POLICY "anon_read_poll_options" ON poll_options FOR SELECT TO anon USING (true);
+CREATE POLICY "anon_read_poll_votes"   ON poll_votes   FOR SELECT TO anon USING (true);
+
+-- 서비스 롤 전체 권한 정책 (Server Actions에서 사용)
+CREATE POLICY "service_all_polls"        ON polls        FOR ALL TO service_role USING (true) WITH CHECK (true);
+CREATE POLICY "service_all_poll_options" ON poll_options FOR ALL TO service_role USING (true) WITH CHECK (true);
+CREATE POLICY "service_all_poll_votes"   ON poll_votes   FOR ALL TO service_role USING (true) WITH CHECK (true);

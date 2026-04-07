@@ -90,3 +90,41 @@ export interface ActionResult<T> {
   data: T | null;
   error: string | null;
 }
+
+// ── 투표 상태 ────────────────────────────────────────────────
+export type PollStatus = "open" | "closed";
+
+// ── 투표 선택지 ──────────────────────────────────────────────
+// 서버에서 poll_options + poll_votes를 JOIN해 vote_count와 voters를 계산해서 전달
+export interface PollOption {
+  id: string;
+  poll_id: string;
+  label: string;
+  position: number;
+  created_at: string;
+  vote_count: number;  // 해당 선택지에 투표한 수
+  voters: Array<{ name: string; part: PartId }>;  // 투표한 사람 목록
+}
+
+// ── 투표 기록 ─────────────────────────────────────────────────
+export interface PollVote {
+  id: string;
+  poll_id: string;
+  option_id: string;
+  voter_name: string;
+  voter_part: PartId;
+  created_at: string;
+}
+
+// ── 투표 ──────────────────────────────────────────────────────
+export interface Poll {
+  id: string;
+  title: string;
+  description: string;
+  creator: string;
+  creator_part: PartId;
+  status: PollStatus;
+  closes_at: string;     // ISO 8601 타임스탬프 (마감 기한)
+  created_at: string;
+  options: PollOption[]; // 선택지 + 투표 결과 포함
+}
