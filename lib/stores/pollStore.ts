@@ -32,6 +32,15 @@ interface PollStore {
 
   // Realtime: 새로운 투표 기록이 들어오면 해당 선택지의 결과를 실시간으로 반영
   addVoteToPoll: (pollId: string, optionId: string, voter: { name: string; part: PartId }) => void;
+
+  // 재투표: voter를 기존 선택지에서 제거하고 새 선택지에 추가 (Realtime UPDATE 이벤트에서도 사용)
+  changeVoteInPoll: (pollId: string, newOptionId: string, voter: { name: string; part: PartId }) => void;
+
+  // Realtime DELETE 이벤트: 특정 선택지에서 voter 제거 (복수선택 재투표 시 기존 표 삭제 단계)
+  removeVoteFromPoll: (pollId: string, optionId: string, voterName: string) => void;
+
+  // 복수선택 낙관적 업데이트: voter를 모든 선택지에서 제거 후 newOptionIds 목록에만 추가
+  setVotesForVoter: (pollId: string, newOptionIds: string[], voter: { name: string; part: PartId }) => void;
 }
 
 export const usePollStore = create<PollStore>((set) => ({
@@ -74,6 +83,92 @@ export const usePollStore = create<PollStore>((set) => ({
         polls: [{ ...pollData, options: [] }, ...state.polls],
       };
     }),
+
+  // 재투표: 모든 선택지를 스캔해서 voter를 기존 선택지에서 제거 후 새 선택지에 추가
+  // Realtime UPDATE 이벤트는 old option_id를 주지 않으므로 내부 스캔 방식으로 처리
+  changeVoteInPoll: (pollId, newOptionId, voter) =>
+    set((state) => ({
+      polls: state.polls.map((p) => {
+        if (p.id !== pollId) return p;
+        return {
+          ...p,
+          options: p.options.map((opt) => {
+            const voterIsHere = opt.voters.some((v) => v.name === voter.name);
+            const isNewOption = opt.id === newOptionId;
+
+            if (voterIsHere && !isNewOption) {
+              // 기존 선택지에서 voter 제거
+              return {
+                ...opt,
+                vote_count: Math.max(0, opt.vote_count - 1),
+                voters: opt.voters.filter((v) => v.name !== voter.name),
+              };
+            }
+            if (!voterIsHere && isNewOption) {
+              // 새 선택지에 voter 추가
+              return {
+                ...opt,
+                vote_count: opt.vote_count + 1,
+                voters: [...opt.voters, voter],
+              };
+            }
+            return opt;
+          }),
+        };
+      }),
+    })),
+
+  // Realtime DELETE: 특정 선택지에서 voter 한 명 제거 (복수선택 재투표의 DELETE 단계에서 호출)
+  removeVoteFromPoll: (pollId, optionId, voterName) =>
+    set((state) => ({
+      polls: state.polls.map((p) => {
+        if (p.id !== pollId) return p;
+        return {
+          ...p,
+          options: p.options.map((opt) => {
+            if (opt.id !== optionId) return opt;
+            return {
+              ...opt,
+              vote_count: Math.max(0, opt.vote_count - 1),
+              voters: opt.voters.filter((v) => v.name !== voterName),
+            };
+          }),
+        };
+      }),
+    })),
+
+  // 복수선택 낙관적 업데이트: voter를 모든 선택지에서 제거한 뒤, newOptionIds에 해당하는 선택지에만 추가
+  setVotesForVoter: (pollId, newOptionIds, voter) =>
+    set((state) => ({
+      polls: state.polls.map((p) => {
+        if (p.id !== pollId) return p;
+        return {
+          ...p,
+          options: p.options.map((opt) => {
+            const voterIsHere  = opt.voters.some((v) => v.name === voter.name);
+            const isNewOption  = newOptionIds.includes(opt.id);
+
+            if (voterIsHere && !isNewOption) {
+              // 새 선택 목록에 없는 기존 선택지 → voter 제거
+              return {
+                ...opt,
+                vote_count: Math.max(0, opt.vote_count - 1),
+                voters: opt.voters.filter((v) => v.name !== voter.name),
+              };
+            }
+            if (!voterIsHere && isNewOption) {
+              // 새로 선택한 선택지에 voter 추가
+              return {
+                ...opt,
+                vote_count: opt.vote_count + 1,
+                voters: [...opt.voters, voter],
+              };
+            }
+            return opt;
+          }),
+        };
+      }),
+    })),
 
   // 실시간 투표 기록 반영: 해당 선택지의 vote_count +1, voters 배열에 추가
   addVoteToPoll: (pollId, optionId, voter) =>

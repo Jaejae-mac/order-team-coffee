@@ -102,15 +102,15 @@ export default function PollList({ polls, currentUserName, currentUserPart }: Po
 function PollEmptyState({ message, sub }: { message: string; sub?: string }) {
   return (
     <div className="flex flex-col items-center justify-center py-16 text-center">
-      <div className="w-12 h-12 rounded-2xl bg-violet-100 flex items-center justify-center mb-3">
-        <svg viewBox="0 0 24 24" className="w-6 h-6 text-violet-500" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <div className="w-14 h-14 rounded-2xl bg-violet-100 flex items-center justify-center mb-4 shadow-sm">
+        <svg viewBox="0 0 24 24" style={{ width: 28, height: 28 }} className="text-violet-500" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
           <line x1="18" y1="20" x2="18" y2="10" />
           <line x1="12" y1="20" x2="12" y2="4" />
           <line x1="6" y1="20" x2="6" y2="14" />
         </svg>
       </div>
-      <p className="text-gray-500 font-medium">{message}</p>
-      {sub && <p className="text-sm text-gray-400 mt-1">{sub}</p>}
+      <p className="text-gray-600 font-semibold text-sm">{message}</p>
+      {sub && <p className="text-xs text-gray-400 mt-1.5">{sub}</p>}
     </div>
   );
 }

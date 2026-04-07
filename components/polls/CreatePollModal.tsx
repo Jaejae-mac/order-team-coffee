@@ -15,6 +15,7 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Switch } from "@/components/ui/switch";
 import { createPoll } from "@/lib/actions/pollActions";
 import type { Poll, PartId } from "@/types";
 
@@ -41,6 +42,8 @@ export default function CreatePollModal({
   const [closeDate, setCloseDate] = useState("");
   const [closeHour, setCloseHour] = useState("23");
   const [closeMinute, setCloseMinute] = useState("59");
+  // 복수선택 허용 여부
+  const [allowMultiple, setAllowMultiple] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
 
@@ -80,12 +83,13 @@ export default function CreatePollModal({
       ).toISOString();
 
       const result = await createPoll({
-        title:       title.trim(),
-        description: description.trim(),
-        options:     filledOptions,
+        title:         title.trim(),
+        description:   description.trim(),
+        options:       filledOptions,
         closesAt,
-        creator:     userName,
-        creatorPart: userPart as PartId,
+        allowMultiple,
+        creator:       userName,
+        creatorPart:   userPart as PartId,
       });
 
       if (result.error || !result.data) {
@@ -109,6 +113,7 @@ export default function CreatePollModal({
     setCloseDate("");
     setCloseHour("23");
     setCloseMinute("59");
+    setAllowMultiple(false);
     setError("");
     onClose();
   }
@@ -243,6 +248,21 @@ export default function CreatePollModal({
                 ))}
               </select>
             </div>
+          </div>
+
+          {/* 복수선택 허용 토글 */}
+          <div className="flex items-center justify-between py-1">
+            <div>
+              <p className="text-sm font-medium text-gray-700">복수선택 허용</p>
+              {allowMultiple && (
+                <p className="text-xs text-violet-500 mt-0.5">여러 선택지를 동시에 고를 수 있어요</p>
+              )}
+            </div>
+            <Switch
+              checked={allowMultiple}
+              onCheckedChange={setAllowMultiple}
+              aria-label="복수선택 허용 여부"
+            />
           </div>
 
           {error && <p className="text-red-500 text-sm">{error}</p>}

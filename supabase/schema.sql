@@ -74,14 +74,15 @@ CREATE POLICY "service_all_orders" ON orders
 -- ── 투표 테이블 ──────────────────────────────────────────────
 -- 투표를 모으는 단위. 한 투표 = 하나의 설문/의사결정
 CREATE TABLE IF NOT EXISTS polls (
-  id           UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
-  title        TEXT        NOT NULL,
-  description  TEXT        NOT NULL DEFAULT '',
-  creator      TEXT        NOT NULL,       -- 투표를 만든 사람의 이름
-  creator_part TEXT        NOT NULL CHECK (creator_part IN ('channel', 'business', 'pay')),
-  status       TEXT        NOT NULL DEFAULT 'open' CHECK (status IN ('open', 'closed')),
-  closes_at    TIMESTAMPTZ NOT NULL,       -- 마감 기한 (이 시각 이후 lazy close 처리)
-  created_at   TIMESTAMPTZ NOT NULL DEFAULT NOW()
+  id             UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
+  title          TEXT        NOT NULL,
+  description    TEXT        NOT NULL DEFAULT '',
+  creator        TEXT        NOT NULL,       -- 투표를 만든 사람의 이름
+  creator_part   TEXT        NOT NULL CHECK (creator_part IN ('channel', 'business', 'pay')),
+  status         TEXT        NOT NULL DEFAULT 'open' CHECK (status IN ('open', 'closed')),
+  closes_at      TIMESTAMPTZ NOT NULL,       -- 마감 기한 (이 시각 이후 lazy close 처리)
+  allow_multiple BOOLEAN     NOT NULL DEFAULT FALSE, -- 복수선택 허용 여부
+  created_at     TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
 -- ── 투표 선택지 테이블 ───────────────────────────────────────
@@ -103,7 +104,8 @@ CREATE TABLE IF NOT EXISTS poll_votes (
   voter_name TEXT        NOT NULL,
   voter_part TEXT        NOT NULL CHECK (voter_part IN ('channel', 'business', 'pay')),
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-  UNIQUE (poll_id, voter_name)   -- DB 레벨에서 1인 1표 보장
+  -- 단일선택: 서버에서 1인 1표 enforce / 복수선택: 같은 선택지에 중복 투표만 방지
+  UNIQUE (poll_id, voter_name, option_id)
 );
 
 -- ── 인덱스 ────────────────────────────────────────────────────
@@ -135,3 +137,12 @@ CREATE POLICY "anon_read_poll_votes"   ON poll_votes   FOR SELECT TO anon USING 
 CREATE POLICY "service_all_polls"        ON polls        FOR ALL TO service_role USING (true) WITH CHECK (true);
 CREATE POLICY "service_all_poll_options" ON poll_options FOR ALL TO service_role USING (true) WITH CHECK (true);
 CREATE POLICY "service_all_poll_votes"   ON poll_votes   FOR ALL TO service_role USING (true) WITH CHECK (true);
+
+
+-- ============================================================
+-- 복수선택 기능 마이그레이션 (이미 테이블이 존재하는 경우 실행)
+-- Supabase SQL Editor에서 아래 구문만 따로 실행하세요.
+-- ============================================================
+-- ALTER TABLE polls ADD COLUMN IF NOT EXISTS allow_multiple BOOLEAN NOT NULL DEFAULT FALSE;
+-- ALTER TABLE poll_votes DROP CONSTRAINT IF EXISTS poll_votes_poll_id_voter_name_key;
+-- ALTER TABLE poll_votes ADD CONSTRAINT poll_votes_unique_per_option UNIQUE (poll_id, voter_name, option_id);

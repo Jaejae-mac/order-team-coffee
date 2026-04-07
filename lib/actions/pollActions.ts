@@ -22,8 +22,12 @@ import { createServerClient } from "@/lib/supabase/server";
 import {
   CreatePollSchema,
   CastVoteSchema,
+  ChangeVoteSchema,
+  CastMultipleVotesSchema,
   type CreatePollInput,
   type CastVoteInput,
+  type ChangeVoteInput,
+  type CastMultipleVotesInput,
 } from "@/lib/validations/pollSchema";
 import type { ActionResult, Poll, PollOption, PartId } from "@/types";
 
@@ -82,14 +86,15 @@ function mapRawPoll(raw: {
     }));
 
   return {
-    id:           raw.id,
-    title:        raw.title,
-    description:  raw.description,
-    creator:      raw.creator,
-    creator_part: raw.creator_part as PartId,
-    status:       raw.status as Poll["status"],
-    closes_at:    raw.closes_at,
-    created_at:   raw.created_at,
+    id:             raw.id,
+    title:          raw.title,
+    description:    raw.description,
+    creator:        raw.creator,
+    creator_part:   raw.creator_part as PartId,
+    status:         raw.status as Poll["status"],
+    closes_at:      raw.closes_at,
+    allow_multiple: (raw as { allow_multiple?: boolean }).allow_multiple ?? false,
+    created_at:     raw.created_at,
     options,
   };
 }
@@ -145,12 +150,13 @@ export async function createPoll(input: CreatePollInput): Promise<ActionResult<P
     const { data: poll, error: pollError } = await supabase
       .from("polls")
       .insert({
-        title:        d.title,
-        description:  d.description,
-        creator:      d.creator,
-        creator_part: d.creatorPart,
-        status:       "open",
-        closes_at:    d.closesAt,
+        title:          d.title,
+        description:    d.description,
+        creator:        d.creator,
+        creator_part:   d.creatorPart,
+        status:         "open",
+        closes_at:      d.closesAt,
+        allow_multiple: d.allowMultiple,
       })
       .select()
       .single();
@@ -174,8 +180,9 @@ export async function createPoll(input: CreatePollInput): Promise<ActionResult<P
     // 새로 만든 투표는 투표 기록이 없으므로 vote_count=0, voters=[] 로 초기화
     const result: Poll = {
       ...poll,
-      creator_part: poll.creator_part as PartId,
-      status:       poll.status as Poll["status"],
+      creator_part:   poll.creator_part as PartId,
+      status:         poll.status as Poll["status"],
+      allow_multiple: poll.allow_multiple ?? false,
       options: (options ?? []).map((opt) => ({
         id:         opt.id,
         poll_id:    opt.poll_id,
@@ -246,6 +253,126 @@ export async function castVote(input: CastVoteInput): Promise<ActionResult<void>
     return { data: undefined, error: null };
   } catch (err) {
     const message = getErrorMessage(err, "투표에 실패했습니다.");
+    return { data: null, error: message };
+  }
+}
+
+/** 복수선택 투표 참여/재투표 — Delete-then-Insert 방식으로 첫투표와 재투표를 통합 처리 */
+export async function castMultipleVotes(input: CastMultipleVotesInput): Promise<ActionResult<void>> {
+  const auth = await requireAuth();
+  if (!auth.ok) return { data: null, error: auth.error };
+
+  try {
+    const parsed = CastMultipleVotesSchema.safeParse(input);
+    if (!parsed.success) {
+      return { data: null, error: parsed.error.issues[0].message };
+    }
+
+    const supabase = createServerClient();
+    const d = parsed.data;
+
+    // 1. 투표 상태 및 복수선택 여부 확인
+    const { data: poll, error: fetchError } = await supabase
+      .from("polls")
+      .select("status, closes_at, allow_multiple")
+      .eq("id", d.pollId)
+      .single();
+
+    if (fetchError || !poll) return { data: null, error: "투표를 찾을 수 없습니다." };
+    if (poll.status === "closed") return { data: null, error: "마감된 투표입니다." };
+    if (new Date(poll.closes_at) < new Date()) return { data: null, error: "마감 기한이 지난 투표입니다." };
+    if (!poll.allow_multiple) return { data: null, error: "단일선택 투표입니다." };
+
+    // 2. 선택한 optionIds가 이 poll의 유효한 선택지인지 검증
+    const { data: validOptions, error: optError } = await supabase
+      .from("poll_options")
+      .select("id")
+      .eq("poll_id", d.pollId)
+      .in("id", d.optionIds);
+
+    if (optError) throw optError;
+    if (!validOptions || validOptions.length !== d.optionIds.length) {
+      return { data: null, error: "유효하지 않은 선택지가 포함되어 있습니다." };
+    }
+
+    // 3. 기존 투표 기록 전부 삭제 (재투표 포함한 통합 처리)
+    const { error: deleteError } = await supabase
+      .from("poll_votes")
+      .delete()
+      .eq("poll_id", d.pollId)
+      .eq("voter_name", d.voterName);
+
+    if (deleteError) throw deleteError;
+
+    // 4. 새 선택지들을 일괄 삽입
+    const insertRows = d.optionIds.map((optionId) => ({
+      poll_id:    d.pollId,
+      option_id:  optionId,
+      voter_name: d.voterName,
+      voter_part: d.voterPart,
+    }));
+
+    const { error: insertError } = await supabase.from("poll_votes").insert(insertRows);
+
+    if (insertError) {
+      if (insertError.code === "23505") return { data: null, error: "중복 투표가 감지되었습니다." };
+      throw insertError;
+    }
+
+    return { data: undefined, error: null };
+  } catch (err) {
+    const message = getErrorMessage(err, "복수선택 투표에 실패했습니다.");
+    return { data: null, error: message };
+  }
+}
+
+/** 재투표 — 기존 투표를 다른 선택지로 변경 (마감 전에만 가능) */
+export async function changeVote(input: ChangeVoteInput): Promise<ActionResult<void>> {
+  const auth = await requireAuth();
+  if (!auth.ok) return { data: null, error: auth.error };
+
+  try {
+    const parsed = ChangeVoteSchema.safeParse(input);
+    if (!parsed.success) {
+      return { data: null, error: parsed.error.issues[0].message };
+    }
+
+    const supabase = createServerClient();
+    const d = parsed.data;
+
+    // 1. 투표 상태 확인
+    const { data: poll, error: fetchError } = await supabase
+      .from("polls")
+      .select("status, closes_at")
+      .eq("id", d.pollId)
+      .single();
+
+    if (fetchError || !poll) return { data: null, error: "투표를 찾을 수 없습니다." };
+    if (poll.status === "closed") return { data: null, error: "마감된 투표는 변경할 수 없습니다." };
+    if (new Date(poll.closes_at) < new Date()) return { data: null, error: "마감 기한이 지난 투표입니다." };
+
+    // 2. 기존 투표 기록 존재 확인
+    const { data: existing, error: existingError } = await supabase
+      .from("poll_votes")
+      .select("id, option_id")
+      .eq("poll_id", d.pollId)
+      .eq("voter_name", d.voterName)
+      .single();
+
+    if (existingError || !existing) return { data: null, error: "투표 기록을 찾을 수 없습니다. 먼저 투표해주세요." };
+    if (existing.option_id === d.newOptionId) return { data: null, error: "이미 같은 선택지에 투표하셨습니다." };
+
+    // 3. 투표 선택지 변경 (option_id만 UPDATE)
+    const { error } = await supabase
+      .from("poll_votes")
+      .update({ option_id: d.newOptionId })
+      .eq("poll_id", d.pollId)
+      .eq("voter_name", d.voterName);
+
+    if (error) throw error;
+    return { data: undefined, error: null };
+  } catch (err) {
+    const message = getErrorMessage(err, "투표 변경에 실패했습니다.");
     return { data: null, error: message };
   }
 }

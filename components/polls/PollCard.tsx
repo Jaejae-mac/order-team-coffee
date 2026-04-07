@@ -3,6 +3,7 @@
  * - 클릭하면 투표 참여 또는 결과 화면이 열림
  * - 생성자 본인일 경우 좌측 스와이프로 삭제 버튼 노출
  * - closes_at 기반으로 카운트다운 표시, 만료 시 자동 closed 처리
+ * - button 중첩 에러 방지를 위해 카드 wrapper를 div로 구현
  */
 "use client";
 
@@ -18,13 +19,10 @@ import type { Poll } from "@/types";
 interface PollCardProps {
   poll: Poll;
   currentUserName: string;
-  /** 카드 클릭 시 (투표 참여/결과 화면 열기) */
   onClick: () => void;
-  /** 투표 인원 뱃지 클릭 시 (결과만 열기) */
   onVoterClick: () => void;
 }
 
-// 삭제 버튼이 완전히 노출되는 너비
 const DELETE_BTN_WIDTH = 80;
 const SNAP_THRESHOLD   = 40;
 
@@ -33,8 +31,6 @@ export default function PollCard({ poll, currentUserName, onClick, onVoterClick 
   const isOpen = poll.status === "open";
   const isMyPoll = poll.creator === currentUserName;
   const creatorPart = PARTS.find((p) => p.id === poll.creator_part);
-
-  // 전체 투표 수
   const totalVotes = poll.options.reduce((sum, opt) => sum + opt.vote_count, 0);
 
   // ── 카운트다운 타이머 ────────────────────────────────────────
@@ -48,7 +44,6 @@ export default function PollCard({ poll, currentUserName, onClick, onVoterClick 
       const diff = new Date(poll.closes_at).getTime() - Date.now();
       if (diff <= 0) {
         setCountdown("마감됨");
-        // 클라이언트 타이머 만료 → optimistic close 후 서버에도 반영
         updatePollStatus(poll.id, "closed");
         closePoll(poll.id).catch(() => {});
         return;
@@ -56,8 +51,7 @@ export default function PollCard({ poll, currentUserName, onClick, onVoterClick 
       const hours   = Math.floor(diff / 1000 / 60 / 60);
       const minutes = Math.floor((diff / 1000 / 60) % 60);
       if (hours >= 24) {
-        const days = Math.floor(hours / 24);
-        setCountdown(`${days}일 후 마감`);
+        setCountdown(`${Math.floor(hours / 24)}일 후 마감`);
       } else if (hours > 0) {
         setCountdown(`${hours}시간 ${minutes}분`);
       } else {
@@ -70,18 +64,18 @@ export default function PollCard({ poll, currentUserName, onClick, onVoterClick 
     return () => clearInterval(timer);
   }, [isOpen, poll.closes_at, poll.id, updatePollStatus]);
 
-  // ── 스와이프 삭제 (SessionCard와 동일한 패턴) ─────────────
-  const touchStartX    = useRef(0);
+  // ── 스와이프 삭제 ──────────────────────────────────────────
+  const touchStartX      = useRef(0);
   const touchStartOffset = useRef(0);
-  const currentOffset  = useRef(0);
-  const didSwipe       = useRef(false);
+  const currentOffset    = useRef(0);
+  const didSwipe         = useRef(false);
   const [swipeOffset, setSwipeOffset] = useState(0);
   const [isSnapping, setIsSnapping]   = useState(false);
 
   function handleTouchStart(e: React.TouchEvent) {
-    touchStartX.current     = e.touches[0].clientX;
+    touchStartX.current      = e.touches[0].clientX;
     touchStartOffset.current = currentOffset.current;
-    didSwipe.current        = false;
+    didSwipe.current         = false;
     setIsSnapping(false);
   }
 
@@ -115,6 +109,13 @@ export default function PollCard({ poll, currentUserName, onClick, onVoterClick 
     onClick();
   }
 
+  function handleKeyDown(e: React.KeyboardEvent) {
+    if (e.key === "Enter" || e.key === " ") {
+      e.preventDefault();
+      handleCardClick();
+    }
+  }
+
   async function handleDelete(e: React.MouseEvent) {
     e.stopPropagation();
     setIsDeleting(true);
@@ -132,76 +133,84 @@ export default function PollCard({ poll, currentUserName, onClick, onVoterClick 
 
   return (
     <div className="relative overflow-hidden rounded-2xl">
-      {/* 삭제 버튼 (생성자 본인만 렌더링) */}
+      {/* 삭제 버튼 (생성자 본인만) */}
       {isMyPoll && (
         <button
           onClick={handleDelete}
           disabled={isDeleting}
-          className="absolute right-0 top-0 bottom-0 flex flex-col items-center justify-center gap-1 bg-red-500 text-white disabled:opacity-60"
+          className="absolute right-0 top-0 bottom-0 flex flex-col items-center justify-center gap-1 bg-red-500 text-white disabled:opacity-60 cursor-pointer"
           style={{ width: DELETE_BTN_WIDTH }}
+          aria-label="투표 삭제"
         >
-          {isDeleting
-            ? <Loader2 className="w-5 h-5 animate-spin" />
-            : <Trash2 className="w-5 h-5" />
-          }
+          {isDeleting ? <Loader2 className="w-5 h-5 animate-spin" /> : <Trash2 className="w-5 h-5" />}
           <span className="text-xs font-medium">{isDeleting ? "" : "삭제"}</span>
         </button>
       )}
 
-      {/* 카드 본체 */}
-      <button
+      {/* 카드 본체 — div로 변경하여 button 중첩 방지 */}
+      <div
+        role="button"
+        tabIndex={0}
         onClick={handleCardClick}
+        onKeyDown={handleKeyDown}
         onTouchStart={isMyPoll ? handleTouchStart : undefined}
         onTouchMove={isMyPoll ? handleTouchMove : undefined}
         onTouchEnd={isMyPoll ? handleTouchEnd : undefined}
-        className="relative w-full text-left rounded-2xl p-4 bg-white border border-violet-100 hover:shadow-md active:opacity-90 transition-shadow cursor-pointer"
+        className="relative w-full text-left rounded-2xl p-4 bg-white border border-violet-100 hover:border-violet-200 hover:shadow-md active:opacity-90 transition-all cursor-pointer select-none"
         style={{
-          transform:  `translateX(${swipeOffset}px)`,
-          transition: isSnapping ? "transform 0.2s ease-out" : "box-shadow 0.15s",
+          transform:   `translateX(${swipeOffset}px)`,
+          transition:  isSnapping ? "transform 0.2s ease-out" : "border-color 0.15s, box-shadow 0.15s",
           touchAction: isMyPoll ? "pan-y" : "auto",
         }}
+        aria-label={`투표: ${poll.title}`}
       >
-        {/* 상단: 제목 + 상태 뱃지 */}
-        <div className="flex items-start justify-between gap-2 mb-2">
-          <div className="flex items-center gap-2 min-w-0">
-            {/* 투표 아이콘 */}
-            <div className="w-8 h-8 rounded-lg bg-violet-100 flex items-center justify-center flex-shrink-0">
-              <svg viewBox="0 0 24 24" className="w-4 h-4 text-violet-600" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        {/* 상단: 아이콘 + 제목 + 상태 뱃지 */}
+        <div className="flex items-start justify-between gap-2 mb-2.5">
+          <div className="flex items-center gap-2.5 min-w-0">
+            <div className="w-9 h-9 rounded-xl bg-violet-100 flex items-center justify-center flex-shrink-0">
+              <svg viewBox="0 0 24 24" className="w-4.5 h-4.5 text-violet-600" style={{ width: 18, height: 18 }} fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                 <line x1="18" y1="20" x2="18" y2="10" />
                 <line x1="12" y1="20" x2="12" y2="4" />
                 <line x1="6" y1="20" x2="6" y2="14" />
               </svg>
             </div>
-            <p className="font-semibold text-gray-800 text-sm truncate">{poll.title}</p>
+            <p className="font-semibold text-gray-800 text-sm leading-snug truncate">{poll.title}</p>
           </div>
-          <Badge
-            variant={isOpen ? "default" : "secondary"}
-            className={`flex-shrink-0 text-xs ${isOpen ? "bg-violet-600" : ""}`}
-          >
-            {isOpen ? "진행중" : "마감"}
-          </Badge>
+          <div className="flex items-center gap-1.5 flex-shrink-0">
+            {/* 복수선택 뱃지 */}
+            {poll.allow_multiple && (
+              <span className="text-xs px-1.5 py-0.5 rounded-full bg-blue-100 text-blue-600 font-medium">
+                복수선택
+              </span>
+            )}
+            <Badge
+              className={`text-xs ${isOpen ? "bg-violet-600 hover:bg-violet-600" : "bg-gray-100 text-gray-500 hover:bg-gray-100"}`}
+            >
+              {isOpen ? "진행중" : "마감"}
+            </Badge>
+          </div>
         </div>
 
-        {/* 설명 (있을 경우) */}
+        {/* 설명 */}
         {poll.description && (
-          <p className="text-xs text-gray-500 mb-2 line-clamp-1">{poll.description}</p>
+          <p className="text-xs text-gray-500 mb-2.5 line-clamp-1 pl-11">{poll.description}</p>
         )}
 
         {/* 선택지 미리보기 (최대 3개) */}
-        <div className="space-y-1 mb-3">
+        <div className="pl-11 space-y-1 mb-3">
           {poll.options.slice(0, 3).map((opt, idx) => (
             <div key={opt.id} className="flex items-center gap-1.5 text-xs text-gray-600">
-              <span className="text-gray-400">{idx + 1}.</span>
+              <span className="text-gray-400 w-3 flex-shrink-0">{idx + 1}.</span>
               <span className="truncate">{opt.label}</span>
             </div>
           ))}
           {poll.options.length > 3 && (
-            <p className="text-xs text-gray-400">+{poll.options.length - 3}개 더</p>
+            <p className="text-xs text-gray-400 pl-4">+{poll.options.length - 3}개 더</p>
           )}
         </div>
 
-        {/* 하단: 마감 시각 + 투표 인원 뱃지 + 생성자 */}
-        <div className="flex items-center justify-between">
+        {/* 하단: 마감 타이머 + 투표 인원 + 생성자 */}
+        <div className="flex items-center justify-between pt-1 border-t border-gray-50">
           <div className="flex items-center gap-1 text-xs text-gray-400">
             <Clock className="w-3 h-3" />
             <span>{countdown || (isOpen ? "계산 중..." : "마감됨")}</span>
@@ -218,7 +227,7 @@ export default function PollCard({ poll, currentUserName, onClick, onVoterClick 
             )}
           </div>
         </div>
-      </button>
+      </div>
     </div>
   );
 }

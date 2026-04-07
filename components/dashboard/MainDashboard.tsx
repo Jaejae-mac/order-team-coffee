@@ -15,7 +15,6 @@ import CreateSessionModal from "@/components/sessions/CreateSessionModal";
 import PollList from "@/components/polls/PollList";
 import CreatePollModal from "@/components/polls/CreatePollModal";
 import FloatingActionButton from "@/components/layout/FloatingActionButton";
-import GameButton from "@/components/layout/GameButton";
 import GameModal from "@/components/layout/GameModal";
 import { useSessionStore } from "@/lib/stores/sessionStore";
 import { usePollStore } from "@/lib/stores/pollStore";
@@ -117,16 +116,14 @@ export default function MainDashboard({
         </Tabs>
       </main>
 
-      {/* 게임 버튼 (+ 버튼 위) */}
-      <GameButton onClick={() => setGameOpen(true)} />
-
       {/* 마블 레이스 게임 전체화면 모달 */}
       <GameModal open={gameOpen} onClose={() => setGameOpen(false)} />
 
-      {/* 새 항목 추가 FAB (커피주문 / 투표 선택) */}
+      {/* FAB — 게임 버튼이 내부에 통합되어 메뉴 열릴 때 자연스럽게 스택됨 */}
       <FloatingActionButton
         onCoffeeClick={() => setCreateSessionModalOpen(true)}
         onPollClick={()   => setCreatePollModalOpen(true)}
+        onGameClick={()   => setGameOpen(true)}
       />
 
       {/* 세션 생성 모달 */}

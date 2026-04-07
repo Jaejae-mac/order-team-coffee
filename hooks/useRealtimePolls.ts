@@ -48,23 +48,38 @@ export function useRealtimePolls(part: PartId) {
       )
       .subscribe();
 
-    // 2. poll_votes 테이블 구독 — 새 투표 기록을 실시간으로 반영
+    // 2. poll_votes 테이블 구독 — INSERT/UPDATE/DELETE 모두 처리
     const voteChannel = supabase
       .channel(`poll_votes:${part}`)
       .on(
         "postgres_changes",
         {
-          event: "INSERT",
+          event: "*",
           schema: "public",
           table: "poll_votes",
         },
         (payload) => {
           const p = payload as unknown as RealtimePayload<PollVote>;
           if (p.eventType === "INSERT") {
+            // 신규 투표: 해당 선택지에 추가
             usePollStore.getState().addVoteToPoll(
               p.new.poll_id,
               p.new.option_id,
               { name: p.new.voter_name, part: p.new.voter_part as PartId }
+            );
+          } else if (p.eventType === "UPDATE") {
+            // 단일선택 재투표: voter가 선택지를 변경했음 — 내부 스캔으로 기존 선택지 찾아 이동
+            usePollStore.getState().changeVoteInPoll(
+              p.new.poll_id,
+              p.new.option_id,
+              { name: p.new.voter_name, part: p.new.voter_part as PartId }
+            );
+          } else if (p.eventType === "DELETE" && p.old.poll_id && p.old.option_id && p.old.voter_name) {
+            // 복수선택 재투표의 DELETE 단계: 기존 표를 선택지에서 제거
+            usePollStore.getState().removeVoteFromPoll(
+              p.old.poll_id,
+              p.old.option_id,
+              p.old.voter_name
             );
           }
         }
