@@ -19,6 +19,7 @@ interface SessionCardProps {
   currentUserName: string;
   onClick: () => void;
   onDelete: (sessionId: string) => Promise<void>;
+  isOpening?: boolean; // 클릭 후 DB 조회 중 로딩 상태
 }
 
 // 삭제 버튼이 완전히 노출되는 너비
@@ -31,6 +32,7 @@ export default function SessionCard({
   currentUserName,
   onClick,
   onDelete,
+  isOpening = false,
 }: SessionCardProps) {
   const isOpen = session.status === "open";
   const creatorPart = PARTS.find((p) => p.id === session.creator_part);
@@ -122,6 +124,12 @@ export default function SessionCard({
     // clip-path로 모든 자식을 동일한 둥근 사각형으로 클리핑
     // overflow-hidden + rounded 방식은 delete button 존재 시 우측 radius가 두꺼워 보이는 렌더링 아티팩트 발생
     <div className="relative" style={{ clipPath: 'inset(0 0 0 0 round 1rem)' }}>
+      {/* DB 조회 중 로딩 오버레이 */}
+      {isOpening && (
+        <div className="absolute inset-0 z-10 flex items-center justify-center rounded-[1rem] bg-white/60">
+          <Loader2 className="w-5 h-5 animate-spin" style={{ color: session.store_color }} />
+        </div>
+      )}
 
       {/* 삭제 버튼 — 우측에 절대 위치, 스와이프 시 노출 (본인 세션만 렌더링) */}
       {isMySession && (
