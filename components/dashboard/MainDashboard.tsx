@@ -9,8 +9,8 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Loader2 } from "lucide-react";
-import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import Header from "@/components/layout/Header";
+import BottomNavBar, { type MainTab } from "@/components/layout/BottomNavBar";
 import SessionList from "@/components/sessions/SessionList";
 import CreateSessionModal from "@/components/sessions/CreateSessionModal";
 import PollList from "@/components/polls/PollList";
@@ -42,6 +42,7 @@ export default function MainDashboard({
   const { sessions, setSessions, addSession } = useSessionStore();
   const { polls, setPolls, addPoll } = usePollStore();
 
+  const [activeTab, setActiveTab] = useState<MainTab>("coffee");
   const [createSessionModalOpen, setCreateSessionModalOpen] = useState(false);
   const [createPollModalOpen, setCreatePollModalOpen]       = useState(false);
   const [gameOpen, setGameOpen] = useState(false);
@@ -94,7 +95,7 @@ export default function MainDashboard({
     <div className="flex flex-col min-h-screen">
       <Header />
 
-      <main className="flex-1 max-w-2xl mx-auto w-full px-4 py-6 pb-40">
+      <main className="flex-1 max-w-2xl mx-auto w-full px-4 py-6 pb-36">
         {/* PWA 당겨서 새로고침 인디케이터 */}
         {isPWA && (isRefreshingSessions || pullDistance > 0) && (
           <div
@@ -113,52 +114,27 @@ export default function MainDashboard({
           </div>
         )}
 
-        {/* 최상위 탭: 커피주문 / 투표 */}
-        <Tabs defaultValue="coffee" className="w-full">
-          <TabsList className="w-full mb-6">
-            <TabsTrigger value="coffee" className="flex-1 gap-2">
-              {/* 커피 아이콘 */}
-              <svg viewBox="0 0 24 24" className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M17 8h1a4 4 0 1 1 0 8h-1" />
-                <path d="M3 8h14v9a4 4 0 0 1-4 4H7a4 4 0 0 1-4-4Z" />
-                <line x1="6" y1="2" x2="6" y2="4" />
-                <line x1="10" y1="2" x2="10" y2="4" />
-                <line x1="14" y1="2" x2="14" y2="4" />
-              </svg>
-              커피주문
-            </TabsTrigger>
-            <TabsTrigger value="poll" className="flex-1 gap-2">
-              {/* 투표 아이콘 */}
-              <svg viewBox="0 0 24 24" className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <line x1="18" y1="20" x2="18" y2="10" />
-                <line x1="12" y1="20" x2="12" y2="4" />
-                <line x1="6" y1="20" x2="6" y2="14" />
-              </svg>
-              투표
-            </TabsTrigger>
-          </TabsList>
-
-          {/* 커피주문 탭 */}
-          <TabsContent value="coffee">
-            <SessionList
-              sessions={sessions}
-              currentUserName={name}
-              currentUserPart={part}
-              onRefresh={handleRefreshSessions}
-              isRefreshing={isRefreshingSessions}
-            />
-          </TabsContent>
-
-          {/* 투표 탭 */}
-          <TabsContent value="poll">
-            <PollList
-              polls={polls}
-              currentUserName={name}
-              currentUserPart={part}
-            />
-          </TabsContent>
-        </Tabs>
+        {/* 탭 콘텐츠 — 하단 BottomNavBar의 activeTab 에 따라 표시 */}
+        {activeTab === "coffee" && (
+          <SessionList
+            sessions={sessions}
+            currentUserName={name}
+            currentUserPart={part}
+            onRefresh={handleRefreshSessions}
+            isRefreshing={isRefreshingSessions}
+          />
+        )}
+        {activeTab === "poll" && (
+          <PollList
+            polls={polls}
+            currentUserName={name}
+            currentUserPart={part}
+          />
+        )}
       </main>
+
+      {/* 하단 고정 내비게이션 바 */}
+      <BottomNavBar active={activeTab} onChange={setActiveTab} />
 
       {/* 마블 레이스 게임 전체화면 모달 */}
       <GameModal open={gameOpen} onClose={() => setGameOpen(false)} />

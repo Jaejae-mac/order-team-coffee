@@ -48,8 +48,8 @@ export default function FloatingActionButton({
         />
       )}
 
-      {/* FAB 전체 컨테이너 — flex-col로 쌓여 자연스럽게 위로 밀림 */}
-      <div className="fixed bottom-6 right-6 flex flex-col items-end gap-3 z-30">
+      {/* FAB 전체 컨테이너 — 하단 내비 바(56px) + 여백 위에 위치 */}
+      <div className="fixed bottom-[80px] right-6 flex flex-col items-end gap-3 z-30">
 
         {/* ── 열렸을 때만 노출되는 메뉴 아이템 ── */}
         {isOpen && (
