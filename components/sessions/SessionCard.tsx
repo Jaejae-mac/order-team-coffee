@@ -121,12 +121,19 @@ export default function SessionCard({
   }
 
   return (
-    // clip-path로 모든 자식을 동일한 둥근 사각형으로 클리핑
-    // overflow-hidden + rounded 방식은 delete button 존재 시 우측 radius가 두꺼워 보이는 렌더링 아티팩트 발생
-    <div className="relative" style={{ clipPath: 'inset(0 0 0 0 round 1rem)' }}>
+    // overflow-hidden + rounded-2xl: 브라우저 네이티브 border-radius 렌더링 사용
+    // transform: translateZ(0): GPU 합성 레이어로 올려 iOS WebKit 안티앨리어싱 보장
+    // border/shadow를 외부 컨테이너에 배치: overflow:hidden 안쪽 요소의 shadow는 잘리므로
+    <div
+      className="relative overflow-hidden rounded-2xl transition-shadow hover:shadow-md"
+      style={{
+        border: `1.5px solid ${session.store_color}20`,
+        transform: 'translateZ(0)',
+      }}
+    >
       {/* DB 조회 중 로딩 오버레이 */}
       {isOpening && (
-        <div className="absolute inset-0 z-10 flex items-center justify-center rounded-[1rem] bg-white/60">
+        <div className="absolute inset-0 z-10 flex items-center justify-center bg-white/60">
           <Loader2 className="w-5 h-5 animate-spin" style={{ color: session.store_color }} />
         </div>
       )}
@@ -155,13 +162,12 @@ export default function SessionCard({
         onTouchStart={isMySession ? handleTouchStart : undefined}
         onTouchMove={isMySession ? handleTouchMove : undefined}
         onTouchEnd={isMySession ? handleTouchEnd : undefined}
-        className="relative w-full text-left p-4 transition-shadow hover:shadow-lg active:opacity-90"
+        className="relative w-full text-left p-4 active:opacity-90"
         style={{
           background: session.store_bg,
-          border: `1.5px solid ${session.store_color}20`,
           transform: `translateX(${swipeOffset}px)`,
           // 손을 뗄 때만 부드러운 스냅 애니메이션 적용
-          transition: isSnapping ? "transform 0.2s ease-out" : "box-shadow 0.15s",
+          transition: isSnapping ? "transform 0.2s ease-out" : undefined,
           // 수직 스크롤은 허용하고 수평은 JS로 처리
           touchAction: isMySession ? "pan-y" : "auto",
         }}
