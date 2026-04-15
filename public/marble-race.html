@@ -1,0 +1,1324 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>마블 레이스</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;700&display=swap');
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html,body{width:100%;height:100%;overflow:hidden;background:#000;color:#fff;font-family:'Noto Sans KR',sans-serif}
+
+#gameCanvas{position:fixed;inset:0;width:100%;height:100%;display:block}
+
+#minimap{
+  position:fixed;top:10px;left:10px;z-index:50;
+  border:1px solid rgba(0,255,160,0.5);
+  background:#000;display:none;
+}
+
+#rankPanel{
+  position:fixed;top:0;right:0;bottom:0;width:130px;
+  z-index:50;display:none;flex-direction:column;
+  padding:12px 8px;overflow:hidden;pointer-events:none;
+  background:rgba(0,0,0,0.5);
+  border-left:1px solid rgba(0,255,160,0.12);
+}
+.rank-title{
+  font-size:0.6rem;font-weight:700;letter-spacing:0.1em;
+  color:rgba(0,255,160,0.5);text-transform:uppercase;
+  margin-bottom:8px;padding-bottom:6px;
+  border-bottom:1px solid rgba(0,255,160,0.15);
+}
+.rank-entry{
+  display:flex;align-items:center;gap:5px;
+  font-size:0.7rem;line-height:1.15;
+  padding:2px 0;overflow:hidden;
+}
+.rank-entry .re-num{
+  font-size:0.6rem;color:rgba(255,255,255,0.35);
+  min-width:16px;text-align:right;flex-shrink:0;
+}
+.rank-entry .re-dot{
+  width:7px;height:7px;border-radius:50%;flex-shrink:0;
+}
+.rank-entry .re-name{
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1;
+}
+.rank-entry.done{opacity:0.38}
+
+#settingsPanel{
+  position:fixed;inset:0;
+  display:flex;align-items:center;justify-content:center;
+  z-index:100;padding:14px;
+  pointer-events:none;
+}
+#settingsPanel.hidden{display:none}
+.sbox{
+  pointer-events:all;
+  background:rgba(0,12,4,0.88);
+  border:1.5px solid rgba(0,220,120,0.6);
+  border-radius:10px;padding:14px 16px 12px;
+  width:min(420px,calc(100vw - 28px));
+  box-shadow:inset 0 0 30px rgba(0,180,80,0.08),0 4px 24px rgba(0,0,0,0.6);
+  backdrop-filter:blur(8px);
+}
+.sbox h1{
+  font-size:1.05rem;font-weight:700;color:#00ff90;
+  text-shadow:0 0 10px rgba(0,255,120,0.5);margin-bottom:4px;
+}
+.sbox-hint{
+  font-size:0.67rem;color:rgba(0,220,120,0.65);
+  margin-bottom:10px;line-height:1.5;
+}
+.player-list{
+  display:flex;flex-direction:column;gap:5px;
+  max-height:180px;overflow-y:auto;margin-bottom:8px;
+  scrollbar-width:thin;scrollbar-color:rgba(0,200,100,0.3) transparent;
+}
+.player-list::-webkit-scrollbar{width:4px}
+.player-list::-webkit-scrollbar-thumb{background:rgba(0,200,100,0.3);border-radius:2px}
+.player-row{
+  display:flex;align-items:center;gap:6px;
+}
+.player-row .p-dot{
+  width:10px;height:10px;border-radius:50%;flex-shrink:0;
+}
+.player-row input{
+  flex:1;background:transparent;
+  border:none;border-bottom:1px solid rgba(0,200,100,0.25);
+  outline:none;color:#fff;font-size:0.82rem;
+  padding:2px 4px;font-family:'Noto Sans KR',sans-serif;
+  transition:border-color 0.15s;
+}
+.player-row input:focus{border-color:rgba(0,255,120,0.7);}
+.player-row input::placeholder{color:rgba(255,255,255,0.2)}
+.player-row .p-del{
+  background:none;border:none;cursor:pointer;
+  color:rgba(255,80,80,0.5);font-size:1rem;line-height:1;
+  padding:0 2px;transition:color 0.15s;flex-shrink:0;
+}
+.player-row .p-del:hover{color:rgba(255,80,80,1)}
+.add-player-btn{
+  width:100%;padding:5px;margin-bottom:10px;
+  background:transparent;
+  border:1px dashed rgba(0,200,100,0.3);border-radius:5px;
+  color:rgba(0,200,100,0.6);font-size:0.75rem;cursor:pointer;
+  transition:all 0.15s;
+}
+.add-player-btn:hover{
+  border-color:rgba(0,255,120,0.7);color:#00ff90;
+  background:rgba(0,200,100,0.05);
+}
+.sbox-row{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:8px}
+.sbox select{
+  background:rgba(0,0,0,0.5);
+  border:1px solid rgba(0,200,100,0.35);
+  border-radius:5px;color:#fff;
+  font-size:0.75rem;padding:5px 7px;outline:none;cursor:pointer;flex:1;min-width:100px;
+}
+.sbox-btns{display:flex;gap:6px}
+.sbtn{
+  flex:1;padding:8px 4px;
+  border:1px solid rgba(0,220,120,0.5);
+  border-radius:6px;background:transparent;
+  color:#00ff90;font-size:0.78rem;font-weight:700;cursor:pointer;
+  transition:all 0.15s;letter-spacing:0.04em;
+}
+.sbtn.primary{background:rgba(0,200,100,0.12);}
+.sbtn:hover{background:rgba(0,255,120,0.18);border-color:rgba(0,255,120,0.9)}
+.sbox-seed{font-size:0.56rem;color:rgba(0,180,80,0.4);margin-top:6px;text-align:right}
+
+#resultPanel{
+  position:fixed;inset:0;display:flex;
+  align-items:center;justify-content:center;
+  background:rgba(0,0,0,0.88);z-index:90;
+}
+#resultPanel.hidden{display:none}
+.rbox{
+  border:1.5px solid rgba(0,220,120,0.55);border-radius:12px;
+  padding:24px 28px;background:rgba(0,12,4,0.92);
+  width:min(320px,90vw);text-align:center;
+  box-shadow:inset 0 0 30px rgba(0,180,80,0.07);
+}
+.rbox h2{font-size:1rem;color:#00ff90;margin-bottom:14px;letter-spacing:0.08em}
+.podium{display:flex;flex-direction:column;gap:5px;margin-bottom:16px;max-height:280px;overflow-y:auto}
+.pod-item{
+  display:flex;align-items:center;gap:9px;
+  padding:6px 10px;border-radius:6px;font-size:0.78rem;
+  border:1px solid transparent;background:rgba(255,255,255,0.03);
+}
+.pod-item.p1{border-color:rgba(255,215,0,0.5);background:rgba(255,215,0,0.06)}
+.pod-item.p2{border-color:rgba(192,192,192,0.4);background:rgba(192,192,192,0.04)}
+.pod-item.p3{border-color:rgba(205,127,50,0.4);background:rgba(205,127,50,0.04)}
+.pod-dot{width:9px;height:9px;border-radius:50%;flex-shrink:0}
+.pod-name{flex:1;text-align:left;font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.pod-rank{font-size:0.65rem;color:rgba(255,255,255,0.35);flex-shrink:0}
+/* 당첨자 강조 */
+.pod-item.winner{
+  border-color:rgba(255,215,0,0.75)!important;
+  background:rgba(255,215,0,0.1)!important;
+  box-shadow:0 0 14px rgba(255,215,0,0.22);
+}
+.pod-item.winner .pod-name{color:#ffe066;font-weight:700}
+.pod-winner-badge{
+  font-size:0.6rem;font-weight:700;letter-spacing:0.04em;
+  color:#ffe066;background:rgba(255,215,0,0.18);
+  border:1px solid rgba(255,215,0,0.5);border-radius:4px;
+  padding:1px 5px;flex-shrink:0;white-space:nowrap;
+}
+</style>
+</head>
+<body>
+
+<canvas id="gameCanvas"></canvas>
+<div id="minimap"><canvas id="mmCanvas"></canvas></div>
+<div id="rankPanel"><div class="rank-title">순위</div><div id="rankRows"></div></div>
+
+<!-- 설정 패널 -->
+<div id="settingsPanel">
+  <div class="sbox">
+    <h1>🏁 마블 레이스</h1>
+    <div class="sbox-hint">이름을 입력하고 START를 눌러 시작하세요</div>
+    <div class="player-list" id="playerList"></div>
+    <button class="add-player-btn" onclick="addPlayer()">＋ 플레이어 추가</button>
+    <div class="sbox-row">
+      <select id="mapStyle">
+        <option value="standard">표준 맵</option>
+        <option value="dense">고밀도</option>
+        <option value="chaos">카오스</option>
+        <option value="zigzag">지그재그</option>
+      </select>
+      <select id="mapLength">
+        <option value="1">짧은 맵</option>
+        <option value="2" selected>보통 맵</option>
+        <option value="3">긴 맵</option>
+      </select>
+    </div>
+    <div class="sbox-row">
+      <select id="winCount">
+        <option value="1">당첨 1명</option>
+        <option value="2">당첨 2명</option>
+      </select>
+      <select id="winFrom">
+        <option value="top">1등부터 당첨</option>
+        <option value="bottom">꼴등부터 당첨</option>
+      </select>
+    </div>
+    <div class="sbox-btns">
+      <button class="sbtn primary" onclick="startRace()">▶ START</button>
+      <button class="sbtn" onclick="shufflePlayers()">SHUFFLE</button>
+    </div>
+    <div class="sbox-seed" id="seedDisplay"></div>
+  </div>
+</div>
+
+<!-- 결과 -->
+<div id="resultPanel" class="hidden">
+  <div class="rbox">
+    <h2>🎉 RACE FINISH</h2>
+    <div class="podium" id="podium"></div>
+    <button class="sbtn primary" style="width:100%;padding:8px;margin-top:4px" onclick="backToSettings()">↺ 다시 하기</button>
+  </div>
+</div>
+
+<script>
+'use strict';
+
+/* ═══════════════════════════════════
+   CONSTANTS
+═══════════════════════════════════ */
+const WORLD_W     = 460;
+const GRAVITY     = 0.32;
+const RESTITUTION = 0.55;
+const FRICTION_H  = 0.991;
+const BALL_R      = 8;
+const PEG_R       = 5;
+const PEG_MIN_GAP = BALL_R * 2 + PEG_R * 2 + 6;
+const WALL_MARGIN = BALL_R + PEG_R + 8;
+const SECTION_H   = 280;
+const BASE_SEC    = 5;
+const CAM_RATIO   = 0.38;
+const CAM_SMOOTH  = 0.07;
+const NEON        = '#00ffaa';
+const MM_W = 88, MM_H = 155;
+
+const PAL = [
+  '#ff3344','#1a99ff','#22cc55','#ffcc00','#cc44ff',
+  '#ff7700','#cccccc','#ff66bb','#00ddcc','#ffdd55',
+];
+
+/* ═══════════════════════════════════
+   STATE
+═══════════════════════════════════ */
+let canvas, ctx, mmCanvas, mmCtx;
+let balls = [], pegs = [], bumpers = [], bars = [];
+let worldH = 0, finishY = 0;
+let camY = 0, camYTarget = 0;
+let particles = [];
+let running = false, gameOver = false;
+let finishOrder = [];
+let animId = null, mapSeed = 0;
+let stuckTimer = 0, stuckAccum = 0;
+let rankTick = 0;
+
+let playerList = [
+  '플레이어 1','플레이어 2','플레이어 3',
+  '플레이어 4','플레이어 5','플레이어 6',
+];
+
+/* ═══════════════════════════════════
+   INIT
+═══════════════════════════════════ */
+window.addEventListener('load', () => {
+  canvas   = document.getElementById('gameCanvas');
+  ctx      = canvas.getContext('2d');
+  mmCanvas = document.getElementById('mmCanvas');
+  mmCtx    = mmCanvas.getContext('2d');
+  mmCanvas.width  = MM_W;
+  mmCanvas.height = MM_H;
+  canvas.width    = window.innerWidth;
+  canvas.height   = window.innerHeight;
+  renderPlayerList();
+});
+
+/* ═══════════════════════════════════
+   PLAYER UI
+═══════════════════════════════════ */
+function renderPlayerList() {
+  const el = document.getElementById('playerList');
+  el.innerHTML = '';
+  playerList.forEach((name, i) => {
+    const color = PAL[i % PAL.length];
+    const row = document.createElement('div');
+    row.className = 'player-row';
+    row.innerHTML = `
+      <div class="p-dot" style="background:${color};box-shadow:0 0 5px ${color}"></div>
+      <input type="text" value="${escHtml(name)}"
+        placeholder="플레이어 이름"
+        oninput="playerList[${i}]=this.value"
+        onkeydown="if(event.key==='Enter'){addPlayer()}" />
+      <button class="p-del" onclick="removePlayer(${i})" title="삭제">×</button>
+    `;
+    el.appendChild(row);
+  });
+}
+
+function escHtml(s) {
+  return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+function addPlayer() {
+  playerList.push('플레이어 ' + (playerList.length + 1));
+  renderPlayerList();
+  const el = document.getElementById('playerList');
+  el.scrollTop = el.scrollHeight;
+  const inputs = el.querySelectorAll('input');
+  if (inputs.length) inputs[inputs.length - 1].focus();
+}
+
+function removePlayer(i) {
+  if (playerList.length <= 2) return;
+  playerList.splice(i, 1);
+  renderPlayerList();
+}
+
+function shufflePlayers() {
+  for (let i = playerList.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [playerList[i], playerList[j]] = [playerList[j], playerList[i]];
+  }
+  renderPlayerList();
+}
+
+/* ═══════════════════════════════════
+   UI CONTROL
+═══════════════════════════════════ */
+function backToSettings() {
+  stopLoop();
+  document.getElementById('resultPanel').classList.add('hidden');
+  document.getElementById('settingsPanel').classList.remove('hidden');
+  document.getElementById('minimap').style.display = 'none';
+  document.getElementById('rankPanel').style.display = 'none';
+  ctx.fillStyle = '#000';
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+}
+
+function stopLoop() {
+  running = false;
+  if (animId) { cancelAnimationFrame(animId); animId = null; }
+}
+
+/* ═══════════════════════════════════
+   MAP GENERATION
+═══════════════════════════════════ */
+function lcg(seed) {
+  let s = seed >>> 0;
+  return () => { s = (Math.imul(s, 1664525) + 1013904223) >>> 0; return s / 0x100000000; };
+}
+
+function buildMap() {
+  pegs = []; bumpers = []; bars = [];
+
+  const style  = document.getElementById('mapStyle').value;
+  const lenVal = parseInt(document.getElementById('mapLength').value, 10);
+  const lenMul = [1, 1.7, 2.6][lenVal - 1] || 1;
+  const numSec = Math.round(BASE_SEC * lenMul);
+
+  mapSeed = Math.floor(Math.random() * 999999);
+  const rand = lcg(mapSeed);
+
+  worldH  = 100 + numSec * SECTION_H + 100;
+  finishY = worldH - 50;
+
+  const mx = WALL_MARGIN + 2;
+  const uw = WORLD_W - mx * 2;
+  const allObs = () => [...pegs, ...bumpers, ...bars];
+
+  /* ── 공통 유틸 ────────────────────────────────── */
+  function canPlace(x, y, r) {
+    if (x - r < WALL_MARGIN || x + r > WORLD_W - WALL_MARGIN) return false;
+    for (const e of allObs()) {
+      const ex = e.x ?? e.cx, ey = e.y ?? e.cy;
+      const gap = e.type === 'bar' ? PEG_MIN_GAP + (e.hw || 0) : PEG_MIN_GAP;
+      if (Math.hypot(ex - x, ey - y) < gap) return false;
+    }
+    return true;
+  }
+
+  function addPeg(x, y) {
+    if (canPlace(x, y, PEG_R))
+      pegs.push({ x, y, r: PEG_R, flash: 0, fc: '#fff', type: 'peg' });
+  }
+
+  function addBumper(x, y, r = 11) {
+    if (canPlace(x, y, r))
+      bumpers.push({ type: 'bumper', x, y, r, flash: 0 });
+  }
+
+  function addBar(cx, cy, hw, angle) {
+    // 수평에 가까운 bar(|angle| < 0.18 rad ≈ 10°)는 공이 올라타 병목 유발
+    // → 최소 경사각을 강제해 공이 끝으로 미끄러지도록 보장
+    const MIN_ANGLE = 0.18;
+    if (Math.abs(angle) < MIN_ANGLE) angle = angle >= 0 ? MIN_ANGLE : -MIN_ANGLE;
+
+    const x1 = cx - Math.cos(angle) * hw, y1 = cy - Math.sin(angle) * hw;
+    const x2 = cx + Math.cos(angle) * hw, y2 = cy + Math.sin(angle) * hw;
+    if (Math.min(x1, x2) < WALL_MARGIN || Math.max(x1, x2) > WORLD_W - WALL_MARGIN) return;
+    const tooClose = allObs().some(e => {
+      const ex = e.x ?? e.cx, ey = e.y ?? e.cy;
+      return Math.hypot(ex - cx, ey - cy) < hw + PEG_MIN_GAP;
+    });
+    if (!tooClose)
+      bars.push({ type: 'bar', cx, cy, x1, y1, x2, y2, hw, angle, flash: 0 });
+  }
+
+  /* 월드 전체 너비 기준 삼각격자 행 */
+  function addTriRows(topY, numRows, rowH, cols, dropRate = 0) {
+    for (let row = 0; row < numRows; row++) {
+      const even = row % 2 === 0;
+      const c    = even ? cols : cols - 1;
+      const sp   = uw / (even ? cols - 1 : cols - 0.5);
+      const offX = even ? mx : mx + sp * 0.5;
+      const y    = topY + row * rowH;
+      for (let ci = 0; ci < c; ci++) {
+        if (rand() < dropRate) continue;
+        addPeg(offX + ci * sp, y);
+      }
+    }
+  }
+
+  /* 중심 x + 폭 지정 삼각격자 행 (corridor·twist 전용) */
+  function addTriRowsAt(topY, numRows, rowH, cols, centerX, totalW, dropRate = 0) {
+    for (let row = 0; row < numRows; row++) {
+      const even = row % 2 === 0;
+      const c    = even ? cols : Math.max(1, cols - 1);
+      const sp   = totalW / Math.max(1, even ? cols - 1 : cols - 0.5);
+      const offX = even ? centerX - totalW / 2 : centerX - totalW / 2 + sp * 0.5;
+      const y    = topY + row * rowH;
+      for (let ci = 0; ci < c; ci++) {
+        if (rand() < dropRate) continue;
+        addPeg(offX + ci * sp, y);
+      }
+    }
+  }
+
+  /* 수직 레인 빈 구간 보충 */
+  function fillVerticalGaps(topY, botY, numLanes = 8) {
+    const laneW = uw / numLanes;
+    for (let lane = 0; lane < numLanes; lane++) {
+      const lx = mx + lane * laneW + laneW * 0.5;
+      const hasPeg = pegs.some(p =>
+        p.y >= topY && p.y <= botY && Math.abs(p.x - lx) < laneW * 0.6
+      );
+      if (!hasPeg) {
+        const fy = topY + (botY - topY) * (0.3 + rand() * 0.4);
+        addPeg(lx + (rand() - 0.5) * laneW * 0.3, fy);
+      }
+    }
+  }
+
+  /* ══════════════════════════════════════════════════
+     섹션 테마 15종
+  ══════════════════════════════════════════════════ */
+
+  /* 1. 표준 삼각격자 */
+  function secTri(top) {
+    const cols = 6 + (rand() < 0.4 ? 1 : 0);
+    addTriRows(top, 10, SECTION_H / 10, cols, 0.03);
+    fillVerticalGaps(top, top + SECTION_H);
+  }
+
+  /* 2. 고밀도 격자 */
+  function secDense(top) {
+    addTriRows(top, 13, SECTION_H / 13, 8 + (rand() < 0.35 ? 1 : 0), 0.02);
+    fillVerticalGaps(top, top + SECTION_H, 10);
+  }
+
+  /* 3. 깔때기 (중앙 수렴 → 범퍼 → 분산) */
+  function secFunnel(top) {
+    const midX = WORLD_W * 0.5 + (rand() - 0.5) * uw * 0.12;
+    const midY = top + SECTION_H * 0.5;
+    for (let row = 0; row < 5; row++) {
+      const t = row / 4;
+      const y = top + row * (SECTION_H * 0.42 / 5);
+      const lx = mx + uw * 0.05 + uw * 0.28 * t;
+      const rx = WORLD_W - lx;
+      const sp = (rx - lx) / 5;
+      for (let c = 0; c <= 5; c++) addPeg(lx + c * sp, y);
+    }
+    addBar(midX - 65, midY - 12, 52, 0.46 + rand() * 0.08);
+    addBar(midX + 65, midY - 12, 52, -(0.46 + rand() * 0.08));
+    addTriRows(midY + 22, 4, (SECTION_H * 0.42) / 4, 6, 0.05);
+    addBumper(midX, midY + 55, 13);
+    fillVerticalGaps(top, top + SECTION_H, 7);
+  }
+
+  /* 4. 무작위 산포 */
+  function secScatter(top) {
+    const target = 30 + Math.floor(rand() * 16);
+    let tries = 0;
+    while (pegs.filter(p => p.y >= top && p.y < top + SECTION_H).length < target && tries++ < 500)
+      addPeg(mx + rand() * uw, top + rand() * SECTION_H);
+    for (let i = 0; i < 4 + Math.floor(rand() * 3); i++)
+      addBar(mx + 28 + rand() * (uw - 56), top + 18 + rand() * (SECTION_H - 36), 20 + rand() * 24, (rand() - 0.5) * 1.3);
+    for (let i = 0; i < 2; i++)
+      addBumper(mx + 22 + rand() * (uw - 44), top + 48 + rand() * (SECTION_H - 96), 11 + rand() * 4);
+    fillVerticalGaps(top, top + SECTION_H, 8);
+  }
+
+  /* 5. V자 반복 */
+  function secVShape(top) {
+    const numV = 3, vH = SECTION_H / numV;
+    for (let v = 0; v < numV; v++) {
+      const midX = WORLD_W * 0.5 + (rand() - 0.5) * uw * 0.1;
+      const vy   = top + v * vH + vH * 0.3;
+      const flip = v % 2 === 0;
+      const ang  = 0.38 + rand() * 0.18;
+      if (flip) {
+        addBar(midX - 52, vy, 46, ang);
+        addBar(midX + 52, vy, 46, -ang);
+      } else {
+        // 수평 bar(angle≈0) 대신 중앙 범퍼 + 양쪽 경사 bar로 교체
+        // → 공이 bar 위에 걸리지 않고 좌·우로 분산
+        addBumper(midX, vy, 10);
+        addBar(midX - 42, vy, 32, 0.24);
+        addBar(midX + 42, vy, 32, -0.24);
+      }
+      addTriRows(top + v * vH, 3, vH * 0.24, 6, 0.06);
+    }
+    fillVerticalGaps(top, top + SECTION_H, 7);
+  }
+
+  /* 6. 지그재그 통로 */
+  function secWide(top) {
+    const rowH = SECTION_H / 9;
+    for (let row = 0; row < 9; row++) {
+      const even = row % 2 === 0, y = top + row * rowH;
+      const gapSide = even ? 'left' : 'right';
+      const cols = 7, sp = uw / (cols - 1);
+      for (let c = 0; c < cols; c++) {
+        const x = mx + c * sp;
+        if (gapSide === 'left'  && c < 2) continue;
+        if (gapSide === 'right' && c > cols - 3) continue;
+        addPeg(x, y);
+      }
+    }
+    for (let row = 0; row < 3; row++) {
+      const y = top + row * (SECTION_H / 3) + SECTION_H / 6;
+      const side = row % 2 === 0;
+      addBar(side ? mx + 28 : WORLD_W - mx - 28, y, 33, side ? -0.52 : 0.52);
+    }
+    fillVerticalGaps(top, top + SECTION_H, 6);
+  }
+
+  /* 7. 오프셋 열 */
+  function secOffset(top) {
+    const rowH = SECTION_H / 10;
+    for (let row = 0; row < 10; row++) {
+      const y = top + row * rowH;
+      const cols = 6 + (row % 3 === 0 ? 1 : 0);
+      const jitter = (rand() - 0.5) * 22;
+      const sp = (uw - 20) / (cols - 1);
+      for (let c = 0; c < cols; c++) {
+        const x = mx + 10 + jitter + c * sp;
+        if (x > WALL_MARGIN && x < WORLD_W - WALL_MARGIN) addPeg(x, y);
+      }
+    }
+    addBumper(mx + 48 + rand() * (uw * 0.32), top + 55 + rand() * (SECTION_H * 0.28), 12);
+    addBumper(mx + uw * 0.54 + rand() * (uw * 0.3), top + SECTION_H * 0.54 + rand() * (SECTION_H * 0.3), 12);
+    fillVerticalGaps(top, top + SECTION_H, 8);
+  }
+
+  /* 8. 좁은 복도 — lean: -1=좌, 0=중앙, 1=우 [신규] */
+  function secCorridor(top, lean) {
+    const centerX = WORLD_W * 0.5 + lean * uw * 0.22;
+    const halfGap = 46 + rand() * 26;
+    for (let i = 0; i < 5; i++) {
+      const y = top + (i + 0.5) * (SECTION_H / 5);
+      const lw = centerX - halfGap - 8 - rand() * 8;
+      const rw = centerX + halfGap + 8 + rand() * 8;
+      if (lw - 30 > WALL_MARGIN)
+        addBar(lw, y, 24 + rand() * 18, 0.22 + rand() * 0.18);
+      if (rw + 30 < WORLD_W - WALL_MARGIN)
+        addBar(rw, y, 24 + rand() * 18, -(0.22 + rand() * 0.18));
+    }
+    addTriRowsAt(top, 8, SECTION_H / 9, 4, centerX, halfGap * 1.55, 0.08);
+    fillVerticalGaps(top, top + SECTION_H, 6);
+  }
+
+  /* 9. 사인 웨이브 핀 분포 [신규] */
+  function secWave(top) {
+    const rows = 12, rowH = SECTION_H / rows;
+    const freq = 1.5 + rand() * 1.5, amp = uw * 0.21;
+    for (let row = 0; row < rows; row++) {
+      const t  = row / (rows - 1);
+      const cx = WORLD_W * 0.5 + Math.sin(t * Math.PI * 2 * freq) * amp;
+      const cols = 5 + (row % 4 === 0 ? 1 : 0);
+      const sp = (uw * 0.54) / Math.max(1, cols - 1);
+      for (let c = 0; c < cols; c++) addPeg(cx - uw * 0.27 + c * sp, top + row * rowH);
+    }
+    fillVerticalGaps(top, top + SECTION_H, 7);
+  }
+
+  /* 10. 폭포형 플랫폼 — 좌우 교대 경사 bar [신규] */
+  function secCascade(top) {
+    const steps = 6, stepH = SECTION_H / steps;
+    for (let i = 0; i < steps; i++) {
+      const side  = i % 2 === 0;
+      const y     = top + i * stepH + stepH * 0.35;
+      // cx를 바깥쪽으로 이동 → 중앙에 명시적 통과 공간 확보
+      const cx    = side ? mx + uw * 0.24 : mx + uw * 0.76;
+      // hw 축소: 좌우 bar가 중앙에서 겹치지 않도록
+      const hw    = uw * 0.20 + rand() * 10;
+      // 각도 증가(최소 0.20 rad ≈ 11°): addBar의 MIN_ANGLE과 별개로 명시적 보장
+      const angle = side ? -(0.20 + rand() * 0.12) : (0.20 + rand() * 0.12);
+      addBar(cx, y, hw, angle);
+      for (let p = 0; p < 3 + Math.floor(rand() * 3); p++)
+        addPeg(mx + 12 + rand() * (uw - 24), y + stepH * 0.18 + rand() * stepH * 0.24);
+    }
+    fillVerticalGaps(top, top + SECTION_H, 7);
+  }
+
+  /* 11. 나선형 핀 배치 [신규] */
+  function secSpiral(top) {
+    const cx = WORLD_W * 0.5 + (rand() - 0.5) * uw * 0.14;
+    const cy = top + SECTION_H * 0.5;
+    const maxR = uw * 0.35, turns = 2 + rand() * 1.5, pts = 30 + Math.floor(rand() * 12);
+    for (let i = 0; i < pts; i++) {
+      const t = i / pts, a = t * Math.PI * 2 * turns, r = maxR * (0.12 + t * 0.88);
+      addPeg(cx + Math.cos(a) * r, cy + Math.sin(a) * r * 0.58);
+    }
+    addBumper(cx, cy, 11 + rand() * 4);
+    fillVerticalGaps(top, top + SECTION_H, 7);
+  }
+
+  /* 12. 핀볼 — 범퍼 밀집 [신규] */
+  function secPinball(top) {
+    const numB = 5 + Math.floor(rand() * 3), placed = [];
+    for (let att = 0; att < numB * 5 && placed.length < numB; att++) {
+      const x = mx + 22 + rand() * (uw - 44), y = top + 32 + rand() * (SECTION_H - 64), r = 11 + rand() * 7;
+      if (!placed.some(p => Math.hypot(p.x - x, p.y - y) < r + p.r + PEG_MIN_GAP + 6)) {
+        addBumper(x, y, r);
+        placed.push({ x, y, r });
+      }
+    }
+    addTriRows(top, 5, SECTION_H / 7, 5, 0.2);
+    for (let i = 0; i < 3 + Math.floor(rand() * 2); i++)
+      addBar(mx + 26 + rand() * (uw - 52), top + 16 + rand() * (SECTION_H - 32), 18 + rand() * 18, (rand() - 0.5) * 1.1);
+    fillVerticalGaps(top, top + SECTION_H, 7);
+  }
+
+  /* 13. 이중 나선 (Double Helix) [신규] */
+  function secHelix(top) {
+    const rows = 14, rowH = SECTION_H / rows, r = uw * 0.27;
+    for (let row = 0; row < rows; row++) {
+      const a = (row / (rows - 1)) * Math.PI * 2.5;
+      const y = top + row * rowH;
+      const x1 = WORLD_W * 0.5 + Math.cos(a) * r;
+      const x2 = WORLD_W * 0.5 + Math.cos(a + Math.PI) * r;
+      addPeg(x1, y); addPeg(x2, y);
+      if (row % 4 === 0)
+        for (let b = 1; b <= 2; b++) addPeg(x1 + (x2 - x1) * b / 3, y);
+    }
+    fillVerticalGaps(top, top + SECTION_H, 7);
+  }
+
+  /* 14. 다이아몬드 격자 [신규] */
+  function secDiamond(top) {
+    const cols = 5, rows = 8, cellW = uw / cols, cellH = SECTION_H / rows;
+    for (let r = 0; r < rows; r++) {
+      for (let c = 0; c < cols; c++) {
+        const cx = mx + c * cellW + cellW * 0.5, cy = top + r * cellH + cellH * 0.5;
+        const dr = Math.min(cellW, cellH) * 0.32;
+        if (rand() > 0.12) addPeg(cx,      cy - dr);
+        if (rand() > 0.12) addPeg(cx + dr, cy);
+        if (rand() > 0.12) addPeg(cx,      cy + dr);
+        if (rand() > 0.12) addPeg(cx - dr, cy);
+      }
+    }
+    fillVerticalGaps(top, top + SECTION_H, 8);
+  }
+
+  /* 15. 방향 전환 (dir: +1=우회전, -1=좌회전) [신규] */
+  function secTwist(top, dir) {
+    addTriRowsAt(top, 3, SECTION_H * 0.17 / 3, 5, WORLD_W * 0.5, uw * 0.58, 0.05);
+    const transY = top + SECTION_H * 0.37, transX = WORLD_W * 0.5 - dir * uw * 0.12;
+    addBar(transX, transY, uw * 0.3, dir * 0.52);
+    addBumper(WORLD_W * 0.5 + dir * uw * 0.18, transY + 20, 12);
+    const botCX = WORLD_W * 0.5 + dir * uw * 0.2;
+    addTriRowsAt(top + SECTION_H * 0.52, 4, SECTION_H * 0.22 / 4, 5, botCX, uw * 0.5, 0.05);
+    addBar(WORLD_W * 0.5 + dir * uw * 0.07, top + SECTION_H * 0.65, uw * 0.22, dir * 0.28);
+    fillVerticalGaps(top, top + SECTION_H, 7);
+  }
+
+  /* ══════════════════════════════════════════════════
+     SmartPicker — 최근 3종 제외 후보에서 랜덤 선택
+     → 같은 테마가 3번 이상 연속 등장 불가
+  ══════════════════════════════════════════════════ */
+  const recentThemes = [];
+  function pickTheme(pool) {
+    const forbidden  = new Set(recentThemes.slice(-3));
+    const candidates = pool.filter(t => !forbidden.has(t));
+    const src  = candidates.length >= 2 ? candidates : pool;
+    const pick = src[Math.floor(rand() * src.length)];
+    recentThemes.push(pick);
+    if (recentThemes.length > 6) recentThemes.shift();
+    return pick;
+  }
+
+  /* ══════════════════════════════════════════════════
+     맵 스타일별 섹션 풀 (각 스타일 15종 이상)
+     - standard : 다양한 테마를 고르게 배합
+     - dense    : 핀 밀도 높은 테마 위주
+     - chaos    : 예측 불가 조합 + 방향 전환 多
+     - zigzag   : 좌우 방향 전환·통로 중심
+  ══════════════════════════════════════════════════ */
+  const themesByStyle = {
+    standard: ['tri','funnel','vshape','corridor','cascade','helix','diamond','wave','wide','spiral','offset','tri','pinball','corridor','funnel','wave'],
+    dense:    ['dense','helix','pinball','dense','spiral','funnel','cascade','dense','diamond','helix','pinball','dense','offset','scatter'],
+    chaos:    ['scatter','twist','spiral','pinball','wave','corridor','scatter','helix','diamond','vshape','twist','scatter','pinball','wave','corridor','twist'],
+    zigzag:   ['wide','corridor','twist','cascade','diamond','wave','spiral','wide','twist','corridor','cascade','helix','vshape','corridor','twist'],
+  };
+  const pool = themesByStyle[style] || themesByStyle.standard;
+
+  /* ── 섹션 순차 생성 ────────────────────────────── */
+  for (let sec = 0; sec < numSec; sec++) {
+    const top   = 80 + sec * SECTION_H;
+    const theme = pickTheme(pool);
+    switch (theme) {
+      case 'tri':      secTri(top);      break;
+      case 'dense':    secDense(top);    break;
+      case 'funnel':   secFunnel(top);   break;
+      case 'scatter':  secScatter(top);  break;
+      case 'vshape':   secVShape(top);   break;
+      case 'wide':     secWide(top);     break;
+      case 'offset':   secOffset(top);   break;
+      case 'corridor': secCorridor(top, [-1, 0, 1][Math.floor(rand() * 3)]); break;
+      case 'wave':     secWave(top);     break;
+      case 'cascade':  secCascade(top);  break;
+      case 'spiral':   secSpiral(top);   break;
+      case 'pinball':  secPinball(top);  break;
+      case 'helix':    secHelix(top);    break;
+      case 'diamond':  secDiamond(top);  break;
+      case 'twist':    secTwist(top, rand() < 0.5 ? 1 : -1); break;
+      default:         secTri(top);
+    }
+  }
+
+  /* ── 최종 직선 낙하 방지 패스 ─────────────────── */
+  const totalLanes = 9;
+  for (let lane = 0; lane < totalLanes; lane++) {
+    const lx = mx + (uw / totalLanes) * (lane + 0.5);
+    for (let sec = 0; sec < numSec; sec++) {
+      const top = 80 + sec * SECTION_H, bot = top + SECTION_H;
+      const inLane = pegs.filter(p =>
+        p.y >= top && p.y < bot && Math.abs(p.x - lx) < (uw / totalLanes) * 0.7
+      );
+      if (inLane.length < 2)
+        for (let fill = 0; fill < 2; fill++) {
+          const fy = top + (SECTION_H / 3) * (fill + 0.5) + (rand() - 0.5) * 20;
+          addPeg(lx + (rand() - 0.5) * 12, fy);
+        }
+    }
+  }
+
+  const el = document.getElementById('seedDisplay');
+  if (el) el.textContent = `Map #${mapSeed} [${style}]`;
+}
+
+/* ═══════════════════════════════════
+   BALLS
+═══════════════════════════════════ */
+function spawnBalls(names) {
+  balls = [];
+  const n  = names.length;
+  const sp = Math.min(40, (WORLD_W - WALL_MARGIN * 2) / Math.max(n, 1));
+  const x0 = WORLD_W / 2 - (n - 1) * sp / 2;
+  names.forEach((name, i) => {
+    balls.push({
+      id: i, name: name || `구슬${i + 1}`,
+      x: x0 + i * sp + (Math.random() - 0.5) * 3,
+      y: 16 + Math.random() * 8,
+      vx: (Math.random() - 0.5) * 0.6, vy: 0.3,
+      r: BALL_R,
+      color: PAL[i % PAL.length],
+      trail: [], finished: false, rank: 0,
+    });
+  });
+}
+
+/* ═══════════════════════════════════
+   RACE CONTROL
+═══════════════════════════════════ */
+function startRace() {
+  const names = playerList.map(s => s.trim()).filter(Boolean);
+  if (names.length < 2) { alert('플레이어를 2명 이상 입력하세요.'); return; }
+
+  stopLoop();
+  buildMap();
+  spawnBalls(names);
+
+  particles = []; finishOrder = []; running = true; gameOver = false;
+  camY = 0; camYTarget = 0; stuckTimer = 0; stuckAccum = 0;
+
+  document.getElementById('settingsPanel').classList.add('hidden');
+  document.getElementById('resultPanel').classList.add('hidden');
+  document.getElementById('minimap').style.display = 'block';
+  document.getElementById('rankPanel').style.display = 'flex';
+
+  buildRankPanel();
+  animId = requestAnimationFrame(loop);
+}
+
+/* ═══════════════════════════════════
+   PHYSICS
+═══════════════════════════════════ */
+function resolveBar(b, bar) {
+  const dx = bar.x2 - bar.x1, dy = bar.y2 - bar.y1;
+  const len2 = dx * dx + dy * dy;
+  if (len2 < 0.001) return;
+  let t = ((b.x - bar.x1) * dx + (b.y - bar.y1) * dy) / len2;
+  t = Math.max(0.05, Math.min(0.95, t));
+  const cx = bar.x1 + t * dx, cy = bar.y1 + t * dy;
+  const ex = b.x - cx, ey = b.y - cy;
+  const dist = Math.hypot(ex, ey), minD = b.r + 4;
+  if (dist < minD && dist > 0.001) {
+    const nx = ex / dist, ny = ey / dist;
+    b.x += nx * (minD - dist);
+    b.y += ny * (minD - dist);
+    const dot = b.vx * nx + b.vy * ny;
+    b.vx = (b.vx - 2 * dot * nx) * RESTITUTION;
+    b.vy = (b.vy - 2 * dot * ny) * RESTITUTION;
+    if (b.vy < 0.4) b.vy = 0.4;
+    bar.flash = 1;
+    spawnSpark(b.x, b.y, b.color, 4);
+  }
+}
+
+function physicsStep() {
+  let anyActive = false, totalSpeed = 0;
+
+  for (const b of balls) {
+    if (b.finished) continue;
+    anyActive = true;
+
+    b.trail.push({ x: b.x, y: b.y });
+    if (b.trail.length > 16) b.trail.shift();
+
+    b.vy += GRAVITY;
+    b.vx *= FRICTION_H;
+    b.x  += b.vx;
+    b.y  += b.vy;
+    totalSpeed += Math.hypot(b.vx, b.vy);
+
+    // 벽
+    if (b.x - b.r < 0)       { b.x = b.r;            b.vx =  Math.abs(b.vx) * RESTITUTION; spawnSpark(b.x, b.y, b.color, 3); }
+    if (b.x + b.r > WORLD_W) { b.x = WORLD_W - b.r;  b.vx = -Math.abs(b.vx) * RESTITUTION; spawnSpark(b.x, b.y, b.color, 3); }
+
+    // 핀
+    for (const peg of pegs) {
+      if (Math.abs(peg.y - b.y) > 80) continue;
+      const dx = b.x - peg.x, dy = b.y - peg.y;
+      const d = Math.hypot(dx, dy), md = b.r + peg.r;
+      if (d < md && d > 0.001) {
+        const nx = dx / d, ny = dy / d;
+        b.x += nx * (md - d); b.y += ny * (md - d);
+        const dot = b.vx * nx + b.vy * ny;
+        b.vx = (b.vx - 2 * dot * nx) * RESTITUTION + (Math.random() - 0.5) * 0.5;
+        b.vy = (b.vy - 2 * dot * ny) * RESTITUTION;
+        if (b.vy < 0.5) b.vy = 0.5;
+        peg.flash = 1; peg.fc = b.color;
+        spawnSpark(b.x, b.y, b.color, 5);
+      }
+    }
+
+    // 범퍼
+    for (const bmp of bumpers) {
+      const dx = b.x - bmp.x, dy = b.y - bmp.y;
+      const d = Math.hypot(dx, dy), md = b.r + bmp.r;
+      if (d < md && d > 0.001) {
+        const nx = dx / d, ny = dy / d;
+        b.x += nx * (md - d); b.y += ny * (md - d);
+        const dot = b.vx * nx + b.vy * ny;
+        b.vx = (b.vx - 2 * dot * nx) * 0.8 + nx * 3;
+        b.vy = (b.vy - 2 * dot * ny) * 0.8 + ny * 3;
+        if (b.vy < 0.8) b.vy = 0.8;
+        bmp.flash = 1;
+        spawnSpark(b.x, b.y, '#ffe44d', 8);
+      }
+    }
+
+    // 막대
+    for (const bar of bars) {
+      if (Math.abs(bar.cy - b.y) > 80) continue;
+      resolveBar(b, bar);
+    }
+
+    // 볼-볼
+    for (const b2 of balls) {
+      if (b2 === b || b2.finished) continue;
+      const dx = b.x - b2.x, dy = b.y - b2.y;
+      const d = Math.hypot(dx, dy), md = b.r + b2.r;
+      if (d < md && d > 0.001) {
+        const nx = dx / d, ny = dy / d, ov = (md - d) * 0.5;
+        b.x  += nx * ov; b.y  += ny * ov;
+        b2.x -= nx * ov; b2.y -= ny * ov;
+        const dot = (b.vx - b2.vx) * nx + (b.vy - b2.vy) * ny;
+        if (dot < 0) {
+          b.vx  -= dot * nx * 0.6; b.vy  -= dot * ny * 0.6;
+          b2.vx += dot * nx * 0.6; b2.vy += dot * ny * 0.6;
+        }
+      }
+    }
+
+    // 결승선
+    if (b.y + b.r >= finishY) {
+      b.y = finishY - b.r; b.vx = 0; b.vy = 0; b.finished = true;
+      finishOrder.push(b); b.rank = finishOrder.length;
+      spawnBurst(b.x, b.y, b.color);
+    }
+  }
+
+  // stuck 감지
+  stuckAccum = stuckAccum * 0.95 + totalSpeed;
+  if (++stuckTimer > 90) {
+    const ac = balls.filter(b => !b.finished).length;
+    if (ac > 0 && stuckAccum / 90 < ac * 0.8) {
+      balls.forEach(b => {
+        if (!b.finished) { b.vx += (Math.random() - 0.5) * 4; b.vy += 2 + Math.random() * 2; }
+      });
+    }
+    stuckAccum = 0; stuckTimer = 0;
+  }
+
+  if (!anyActive && !gameOver) {
+    gameOver = true; running = false;
+    setTimeout(showResult, 700);
+  }
+}
+
+/* ═══════════════════════════════════
+   CAMERA
+═══════════════════════════════════ */
+function updateCamera() {
+  if (balls.length === 0) return;
+  const active = balls.filter(b => !b.finished);
+  const ref = active.length > 0
+    ? active.reduce((a, b) => (b.y > a.y ? b : a))
+    : balls.reduce((a, b) => (b.y > a.y ? b : a));
+  const target = ref.y - canvas.height * CAM_RATIO;
+  camYTarget = Math.max(0, Math.min(worldH - canvas.height, target));
+  camY += (camYTarget - camY) * CAM_SMOOTH;
+}
+
+/* ═══════════════════════════════════
+   WORLD → SCREEN
+═══════════════════════════════════ */
+function ws(wx, wy) {
+  const rankW  = document.getElementById('rankPanel').offsetWidth || 130;
+  const usable = canvas.width - rankW;
+  const ox     = (usable - WORLD_W) / 2;
+  return { sx: wx + ox, sy: wy - camY };
+}
+
+/* ═══════════════════════════════════
+   PARTICLES
+═══════════════════════════════════ */
+function spawnSpark(wx, wy, color, n) {
+  for (let i = 0; i < n; i++) {
+    const a = Math.random() * Math.PI * 2, s = 0.4 + Math.random() * 2.5;
+    particles.push({ wx, wy, vx: Math.cos(a) * s, vy: Math.sin(a) * s,
+      life: 1, decay: 0.06 + Math.random() * 0.05, size: 1 + Math.random() * 2,
+      color, type: 'spark' });
+  }
+}
+
+function spawnBurst(wx, wy, color) {
+  for (let i = 0; i < 50; i++) {
+    const a = Math.random() * Math.PI * 2, s = 1 + Math.random() * 5;
+    particles.push({
+      wx, wy,
+      vx: Math.cos(a) * s,
+      vy: Math.sin(a) * s - 1.5,
+      life: 1,
+      decay: 0.009 + Math.random() * 0.01,
+      size: 2 + Math.random() * 4,
+      color: Math.random() < 0.4 ? '#fff' : color,
+      grav: 0.05,
+      type: 'confetti',
+      rot: Math.random() * Math.PI * 2,
+    });
+  }
+}
+
+function updateParticles() {
+  for (let i = particles.length - 1; i >= 0; i--) {
+    const p = particles[i];
+    p.wx += p.vx; p.wy += p.vy; p.vx *= 0.96;
+    if (p.grav) p.vy += p.grav;
+    p.life -= p.decay;
+    if (p.life <= 0) particles.splice(i, 1);
+  }
+  pegs.forEach(p    => { if (p.flash   > 0) p.flash   -= 0.08; });
+  bumpers.forEach(b => { if (b.flash   > 0) b.flash   -= 0.07; });
+  bars.forEach(b    => { if (b.flash   > 0) b.flash   -= 0.08; });
+}
+
+/* ═══════════════════════════════════
+   DRAW
+═══════════════════════════════════ */
+function draw() {
+  const cw = canvas.width, ch = canvas.height;
+  ctx.fillStyle = '#000';
+  ctx.fillRect(0, 0, cw, ch);
+  drawWalls();
+  drawBars();
+  drawPegs();
+  drawBumpers();
+  drawFinishLine();
+  drawStartLine();
+  drawTrails();
+  drawBalls();
+  drawParticles_canvas();
+}
+
+function drawWalls() {
+  const { sx: x0 } = ws(0, 0);
+  const { sx: x1 } = ws(WORLD_W, 0);
+  const ch = canvas.height;
+
+  ctx.save();
+  ctx.strokeStyle = 'rgba(0,255,160,0.3)';
+  ctx.lineWidth = 1;
+  ctx.beginPath(); ctx.moveTo(x0, 0); ctx.lineTo(x0, ch); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(x1, 0); ctx.lineTo(x1, ch); ctx.stroke();
+  ctx.restore();
+
+  ctx.fillStyle = '#000';
+  if (x0 > 0)            ctx.fillRect(0,  0, x0,               ch);
+  if (x1 < canvas.width) ctx.fillRect(x1, 0, canvas.width - x1, ch);
+}
+
+function drawStartLine() {
+  const { sx: x0, sy: y } = ws(0, 40);
+  const { sx: x1 }        = ws(WORLD_W, 40);
+  if (y < -5 || y > canvas.height + 5) return;
+  ctx.save();
+  ctx.strokeStyle = 'rgba(0,255,150,0.2)'; ctx.lineWidth = 1;
+  ctx.setLineDash([4, 4]);
+  ctx.beginPath(); ctx.moveTo(x0, y); ctx.lineTo(x1, y); ctx.stroke();
+  ctx.setLineDash([]);
+  ctx.restore();
+}
+
+function drawPegs() {
+  const ch = canvas.height;
+  for (const peg of pegs) {
+    const { sx, sy } = ws(peg.x, peg.y);
+    if (sy < -15 || sy > ch + 15) continue;
+    const f = Math.max(0, peg.flash);
+    ctx.save();
+    if (f > 0.05) { ctx.shadowColor = peg.fc; ctx.shadowBlur = 10 * f; }
+    const r = peg.r;
+    ctx.beginPath();
+    ctx.moveTo(sx, sy - r); ctx.lineTo(sx + r, sy);
+    ctx.lineTo(sx, sy + r); ctx.lineTo(sx - r, sy);
+    ctx.closePath();
+    ctx.fillStyle = f > 0.05 ? peg.fc : 'rgba(80,120,80,0.9)';
+    ctx.fill();
+    ctx.restore();
+  }
+}
+
+function drawBumpers() {
+  const ch = canvas.height;
+  for (const bmp of bumpers) {
+    const { sx, sy } = ws(bmp.x, bmp.y);
+    if (sy < -20 || sy > ch + 20) continue;
+    const f = Math.max(0, bmp.flash);
+    ctx.save();
+    ctx.shadowColor = f > 0.2 ? '#ffe44d' : 'rgba(255,200,0,0.3)';
+    ctx.shadowBlur  = f > 0.2 ? 18 : 6;
+    ctx.beginPath(); ctx.arc(sx, sy, bmp.r, 0, Math.PI * 2);
+    ctx.strokeStyle = f > 0.2 ? '#ffe44d' : 'rgba(255,180,0,0.55)';
+    ctx.lineWidth = 2; ctx.stroke();
+    ctx.beginPath(); ctx.arc(sx, sy, 3, 0, Math.PI * 2);
+    ctx.fillStyle = f > 0.2 ? '#ffe44d' : 'rgba(255,180,0,0.4)'; ctx.fill();
+    ctx.restore();
+  }
+}
+
+function drawBars() {
+  const ch = canvas.height;
+  for (const bar of bars) {
+    const p1 = ws(bar.x1, bar.y1), p2 = ws(bar.x2, bar.y2);
+    if (p1.sy < -30 && p2.sy < -30) continue;
+    if (p1.sy > ch + 30 && p2.sy > ch + 30) continue;
+    const f = Math.max(0, bar.flash);
+    ctx.save();
+    if (f > 0.1) { ctx.shadowColor = NEON; ctx.shadowBlur = 10 * f; }
+    ctx.beginPath(); ctx.moveTo(p1.sx, p1.sy); ctx.lineTo(p2.sx, p2.sy);
+    ctx.strokeStyle = f > 0.1 ? NEON : 'rgba(0,180,100,0.55)';
+    ctx.lineWidth = 5; ctx.lineCap = 'round'; ctx.stroke();
+    ctx.restore();
+  }
+}
+
+function drawFinishLine() {
+  const { sx: x0, sy: fy } = ws(0, finishY);
+  const { sx: x1 }         = ws(WORLD_W, finishY);
+  if (fy < -8 || fy > canvas.height + 8) return;
+  const bw = 12;
+  for (let x = x0; x < x1; x += bw) {
+    if (Math.floor((x - x0) / bw) % 2 === 0) {
+      ctx.fillStyle = 'rgba(255,255,255,0.25)';
+      ctx.fillRect(x, fy - 4, bw, 8);
+    }
+  }
+  ctx.save();
+  ctx.shadowColor = 'rgba(255,215,0,0.7)'; ctx.shadowBlur = 8;
+  ctx.strokeStyle = 'rgba(255,215,0,0.9)'; ctx.lineWidth = 2;
+  ctx.beginPath(); ctx.moveTo(x0, fy); ctx.lineTo(x1, fy); ctx.stroke();
+  ctx.restore();
+  ctx.font = '10px sans-serif'; ctx.fillStyle = 'rgba(255,215,0,0.8)';
+  ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic';
+  ctx.fillText('FINISH', x0 + 5, fy - 6);
+}
+
+function drawTrails() {
+  for (const b of balls) {
+    if (b.trail.length < 2) continue;
+    for (let i = 1; i < b.trail.length; i++) {
+      const t  = i / b.trail.length;
+      const p0 = ws(b.trail[i - 1].x, b.trail[i - 1].y);
+      const p1 = ws(b.trail[i].x,     b.trail[i].y);
+      ctx.beginPath(); ctx.moveTo(p0.sx, p0.sy); ctx.lineTo(p1.sx, p1.sy);
+      ctx.strokeStyle = b.color;
+      ctx.globalAlpha = t * (b.finished ? 0.07 : 0.2);
+      ctx.lineWidth   = t * b.r * 1.2;
+      ctx.lineCap = 'round'; ctx.stroke();
+    }
+  }
+  ctx.globalAlpha = 1;
+}
+
+function drawBalls() {
+  for (const b of balls) {
+    const { sx, sy } = ws(b.x, b.y);
+    if (sy < -25 || sy > canvas.height + 25) continue;
+    ctx.save();
+    ctx.globalAlpha = b.finished ? 0.45 : 1;
+    if (!b.finished) { ctx.shadowColor = b.color; ctx.shadowBlur = 16; }
+    const g = ctx.createRadialGradient(sx - b.r * 0.3, sy - b.r * 0.3, b.r * 0.05, sx, sy, b.r);
+    g.addColorStop(0, 'rgba(255,255,255,0.9)');
+    g.addColorStop(0.28, b.color);
+    g.addColorStop(1, 'rgba(0,0,0,0.45)');
+    ctx.beginPath(); ctx.arc(sx, sy, b.r, 0, Math.PI * 2);
+    ctx.fillStyle = g; ctx.fill();
+    ctx.shadowBlur = 0;
+    ctx.globalAlpha = b.finished ? 0.3 : 0.9;
+    ctx.font = 'bold 8px Noto Sans KR';
+    ctx.textAlign = 'center'; ctx.textBaseline = 'top';
+    ctx.fillStyle = b.color;
+    ctx.fillText(b.name, sx, sy + b.r + 2);
+    if (b.finished && b.rank <= 3) {
+      const medals = ['🥇', '🥈', '🥉'];
+      ctx.font = `${b.r + 3}px serif`;
+      ctx.textAlign = 'center'; ctx.textBaseline = 'bottom';
+      ctx.globalAlpha = 0.85;
+      ctx.fillText(medals[b.rank - 1], sx, sy - b.r);
+    }
+    ctx.restore();
+  }
+}
+
+function drawParticles_canvas() {
+  for (const p of particles) {
+    const { sx, sy } = ws(p.wx, p.wy);
+    ctx.save(); ctx.globalAlpha = p.life;
+    if (p.type === 'spark') {
+      ctx.shadowColor = p.color; ctx.shadowBlur = 5;
+      ctx.beginPath(); ctx.arc(sx, sy, p.size * p.life, 0, Math.PI * 2);
+      ctx.fillStyle = p.color; ctx.fill();
+    } else {
+      ctx.translate(sx, sy); ctx.rotate(p.rot || 0);
+      ctx.fillStyle = p.color;
+      ctx.fillRect(-p.size / 2, -p.size / 2, p.size, p.size);
+    }
+    ctx.restore();
+  }
+}
+
+/* ═══════════════════════════════════
+   MINIMAP
+═══════════════════════════════════ */
+function drawMinimap() {
+  if (!worldH) return;
+  const mw = MM_W, mh = MM_H;
+  mmCtx.fillStyle = '#000';
+  mmCtx.fillRect(0, 0, mw, mh);
+  const scaleX = mw / WORLD_W, scaleY = mh / worldH;
+
+  mmCtx.fillStyle = 'rgba(60,110,60,0.7)';
+  for (const peg of pegs)
+    mmCtx.fillRect(peg.x * scaleX - 1, peg.y * scaleY - 1, 2, 2);
+
+  mmCtx.strokeStyle = 'rgba(0,180,100,0.5)'; mmCtx.lineWidth = 1;
+  for (const bar of bars) {
+    mmCtx.beginPath();
+    mmCtx.moveTo(bar.x1 * scaleX, bar.y1 * scaleY);
+    mmCtx.lineTo(bar.x2 * scaleX, bar.y2 * scaleY);
+    mmCtx.stroke();
+  }
+
+  mmCtx.strokeStyle = 'rgba(255,215,0,0.65)'; mmCtx.lineWidth = 1;
+  mmCtx.beginPath();
+  mmCtx.moveTo(0, finishY * scaleY); mmCtx.lineTo(mw, finishY * scaleY);
+  mmCtx.stroke();
+
+  const vy = camY * scaleY, vh = canvas.height * scaleY;
+  mmCtx.strokeStyle = 'rgba(0,255,160,0.5)'; mmCtx.lineWidth = 1;
+  mmCtx.strokeRect(0, vy, mw, Math.min(vh, mh - vy));
+
+  for (const b of balls) {
+    mmCtx.beginPath();
+    mmCtx.arc(b.x * scaleX, b.y * scaleY, 2, 0, Math.PI * 2);
+    mmCtx.fillStyle = b.finished ? 'rgba(120,120,120,0.5)' : b.color;
+    mmCtx.fill();
+  }
+
+  mmCtx.strokeStyle = 'rgba(0,255,160,0.3)'; mmCtx.lineWidth = 1;
+  mmCtx.beginPath(); mmCtx.moveTo(0, 0); mmCtx.lineTo(0, mh); mmCtx.stroke();
+  mmCtx.beginPath(); mmCtx.moveTo(mw - 1, 0); mmCtx.lineTo(mw - 1, mh); mmCtx.stroke();
+}
+
+/* ═══════════════════════════════════
+   RANK PANEL
+═══════════════════════════════════ */
+function buildRankPanel() {
+  const el = document.getElementById('rankRows');
+  el.innerHTML = '';
+  [...balls].sort((a, b) => a.id - b.id).forEach(b => {
+    const row = document.createElement('div');
+    row.className = 'rank-entry';
+    row.id = `re-${b.id}`;
+    row.innerHTML =
+      `<span class="re-num" id="rn-${b.id}">—</span>` +
+      `<div class="re-dot" style="background:${b.color};box-shadow:0 0 4px ${b.color}"></div>` +
+      `<span class="re-name" style="color:${b.color}" id="rm-${b.id}">${b.name}</span>`;
+    el.appendChild(row);
+  });
+}
+
+function updateRankPanel() {
+  if (++rankTick % 4 !== 0) return;
+  const sorted = [...balls].sort((a, b) => {
+    if (a.finished && !b.finished) return -1;
+    if (!a.finished && b.finished) return 1;
+    if (a.finished && b.finished)  return a.rank - b.rank;
+    return b.y - a.y;
+  });
+  sorted.forEach((b, i) => {
+    const rnEl  = document.getElementById(`rn-${b.id}`);
+    const rowEl = document.getElementById(`re-${b.id}`);
+    if (!rnEl || !rowEl) return;
+    rnEl.textContent  = b.finished
+      ? (['🥇','🥈','🥉'][b.rank - 1] || `${b.rank}위`)
+      : String(i + 1);
+    rowEl.className = 'rank-entry' + (b.finished ? ' done' : '');
+  });
+}
+
+/* ═══════════════════════════════════
+   RESULT
+═══════════════════════════════════ */
+function showResult() {
+  // 당첨 설정 읽기
+  const winCount = parseInt(document.getElementById('winCount').value, 10);
+  const winFrom  = document.getElementById('winFrom').value; // 'top' | 'bottom'
+
+  document.getElementById('resultPanel').classList.remove('hidden');
+  const podium = document.getElementById('podium');
+  podium.innerHTML = '';
+  const sorted = [...balls].sort((a, b) => a.rank - b.rank);
+  const total  = sorted.length;
+
+  sorted.forEach((b, i) => {
+    const rank = i + 1; // 1-indexed
+
+    // 당첨 여부 판별 — 앞에서면 상위 N명, 꼴등부터면 하위 N명
+    const isWinner = winFrom === 'top'
+      ? rank <= winCount
+      : rank > total - winCount;
+
+    const medals = ['🥇', '🥈', '🥉'];
+    const cls    = ['p1', 'p2', 'p3'];
+    const d = document.createElement('div');
+    d.className = `pod-item ${cls[i] || ''} ${isWinner ? 'winner' : ''}`.trim();
+    d.innerHTML =
+      `<span>${medals[i] || rank}</span>` +
+      `<div class="pod-dot" style="background:${b.color};box-shadow:0 0 6px ${b.color}"></div>` +
+      `<span class="pod-name">${b.name}</span>` +
+      (isWinner ? `<span class="pod-winner-badge">🏆 당첨</span>` : `<span class="pod-rank">${rank}위</span>`);
+    podium.appendChild(d);
+  });
+}
+
+/* ═══════════════════════════════════
+   MAIN LOOP
+═══════════════════════════════════ */
+function loop() {
+  if (running) {
+    physicsStep();
+    updateCamera();
+    updateRankPanel();
+  }
+  updateParticles();
+  draw();
+  if (balls.length > 0) drawMinimap();
+  animId = requestAnimationFrame(loop);
+}
+</script>
+</body>
+</html>
