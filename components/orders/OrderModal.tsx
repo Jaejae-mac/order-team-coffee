@@ -26,6 +26,7 @@ interface OrderModalProps {
   userName: string;
   userPart: string;
   initialOrder?: Order;                   // 수정 모드일 때 기존 주문 데이터
+  prefillMenu?: string;                   // 빠른 추가 시 미리 선택할 메뉴 이름
   onOrderAdded: (order: Order) => void;
   onOrderEdited: (order: Order) => void;
 }
@@ -37,6 +38,7 @@ export default function OrderModal({
   userName,
   userPart,
   initialOrder,
+  prefillMenu,
   onOrderAdded,
   onOrderEdited,
 }: OrderModalProps) {
@@ -52,7 +54,7 @@ export default function OrderModal({
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
 
-  // 수정 모드 전환 시 초기값 재설정
+  // 수정 모드 전환 또는 빠른 추가(prefillMenu) 시 초기값 재설정
   useEffect(() => {
     if (initialOrder) {
       setSelectedMenu(initialOrder.menu);
@@ -60,14 +62,14 @@ export default function OrderModal({
       setSize(initialOrder.size);
       setMemo(initialOrder.memo);
     } else {
-      setSelectedMenu("");
+      setSelectedMenu(prefillMenu ?? "");
       setDirectInput("");
       setTemp("ICE");
       setSize(sizeOptions[0]);
       setMemo("");
     }
     setError("");
-  }, [initialOrder, open, sizeOptions]);
+  }, [initialOrder, prefillMenu, open, sizeOptions]);
 
   // 실제 음료 이름 (선택 또는 직접 입력 중 하나)
   const finalMenu = directInput.trim() || selectedMenu;

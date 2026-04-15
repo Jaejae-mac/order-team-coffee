@@ -18,6 +18,7 @@ interface OrderGroupCardProps {
   sessionStatus: "open" | "closed";
   onEdit: (orderId: string) => void;
   onCancel: (orderId: string) => Promise<void>;
+  onQuickAdd?: (menu: string, temp: "HOT" | "ICE", size: string) => void;
 }
 
 export default function OrderGroupCard({
@@ -27,6 +28,7 @@ export default function OrderGroupCard({
   sessionStatus,
   onEdit,
   onCancel,
+  onQuickAdd,
 }: OrderGroupCardProps) {
   const isOpen = sessionStatus === "open";
   // 현재 사용자의 주문이 이 그룹에 포함되어 있는지 확인 (수정/취소 버튼 표시 여부 결정)
@@ -62,6 +64,17 @@ export default function OrderGroupCard({
             >
               x{group.count}
             </span>
+          )}
+          {/* 빠른 주문 추가 버튼 — 세션이 열려 있을 때만 표시 */}
+          {isOpen && onQuickAdd && (
+            <button
+              onClick={() => onQuickAdd(group.menu, group.temp, group.size)}
+              className="w-5 h-5 rounded-full flex items-center justify-center text-white text-xs font-bold shrink-0 transition-opacity hover:opacity-80 active:opacity-60"
+              style={{ background: storeColor }}
+              title={`${group.menu} 동일 메뉴 추가`}
+            >
+              +
+            </button>
           )}
         </div>
 

@@ -45,6 +45,7 @@ export default function SessionDetailModal({
 
   const [orderModalOpen, setOrderModalOpen] = useState(false);
   const [editingOrder, setEditingOrder] = useState<Order | undefined>(undefined);
+  const [prefillMenu, setPrefillMenu] = useState<string | undefined>(undefined);
   const [actionLoading, setActionLoading] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
 
@@ -98,6 +99,14 @@ export default function SessionDetailModal({
 
   function handleAddOrder() {
     setEditingOrder(undefined);
+    setPrefillMenu(undefined);
+    setOrderModalOpen(true);
+  }
+
+  // + 버튼 클릭: 해당 메뉴를 미리 선택한 채로 주문 추가 모달 오픈
+  function handleQuickAdd(menu: string) {
+    setEditingOrder(undefined);
+    setPrefillMenu(menu);
     setOrderModalOpen(true);
   }
 
@@ -169,6 +178,7 @@ export default function SessionDetailModal({
                     sessionStatus={session.status}
                     onEdit={handleEditOrder}
                     onCancel={handleCancelOrder}
+                    onQuickAdd={handleQuickAdd}
                   />
                 ))}
               </div>
@@ -211,6 +221,7 @@ export default function SessionDetailModal({
         userName={currentUserName}
         userPart={currentUserPart}
         initialOrder={editingOrder}
+        prefillMenu={prefillMenu}
         onOrderAdded={handleOrderAdded}
         onOrderEdited={handleOrderEdited}
       />
