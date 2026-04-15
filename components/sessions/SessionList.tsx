@@ -2,12 +2,12 @@
  * 세션 목록 컴포넌트
  * - "접수중" / "마감" 탭으로 세션을 분류해서 보여줌
  * - 각 카드 클릭 시 SessionDetailModal을 열어 주문 상세를 확인
- * - 새로고침 버튼으로 전체 세션 목록을 DB에서 재조회 가능
+ * - 새로고침은 PWA에서 당겨서 새로고침으로 동작 (버튼 없음)
  */
 "use client";
 
 import { useState } from "react";
-import { Loader2, RefreshCw } from "lucide-react";
+import { Loader2 } from "lucide-react";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import SessionCard from "@/components/sessions/SessionCard";
 import SessionDetailModal from "@/components/sessions/SessionDetailModal";
@@ -89,9 +89,9 @@ export default function SessionList({
   return (
     <>
       <Tabs defaultValue="open" className="w-full">
-        {/* 탭 + 새로고침 버튼 행 */}
-        <div className="flex items-center gap-2 mb-4">
-          <TabsList className="flex-1">
+        {/* 탭 행 */}
+        <div className="mb-4">
+          <TabsList className="w-full">
             <TabsTrigger value="open" className="flex-1">
               접수중 ({openSessions.length})
             </TabsTrigger>
@@ -99,19 +99,6 @@ export default function SessionList({
               마감 ({closedSessions.length})
             </TabsTrigger>
           </TabsList>
-          {onRefresh && (
-            <button
-              onClick={onRefresh}
-              disabled={isRefreshing}
-              className="p-2 rounded-full text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors disabled:opacity-50 shrink-0"
-              title="목록 새로고침"
-            >
-              {isRefreshing
-                ? <Loader2 className="w-4 h-4 animate-spin" />
-                : <RefreshCw className="w-4 h-4" />
-              }
-            </button>
-          )}
         </div>
 
         {/* 접수중 세션 목록 */}

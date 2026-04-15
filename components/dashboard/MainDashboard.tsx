@@ -8,6 +8,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import { Loader2 } from "lucide-react";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import Header from "@/components/layout/Header";
 import SessionList from "@/components/sessions/SessionList";
@@ -21,6 +22,7 @@ import { usePollStore } from "@/lib/stores/pollStore";
 import { useAuthStore } from "@/lib/stores/authStore";
 import { useRealtimeSessions } from "@/hooks/useRealtimeSessions";
 import { useRealtimePolls } from "@/hooks/useRealtimePolls";
+import { usePullToRefresh } from "@/hooks/usePullToRefresh";
 import { getSessions } from "@/lib/actions/sessionActions";
 import type { Session, Poll, PartId } from "@/types";
 
@@ -36,7 +38,7 @@ export default function MainDashboard({
   initialPart,
 }: MainDashboardProps) {
   const router = useRouter();
-  const { name, part, isLoggedIn } = useAuthStore();
+  const { name, part, isLoggedIn, _hasHydrated } = useAuthStore();
   const { sessions, setSessions, addSession } = useSessionStore();
   const { polls, setPolls, addPoll } = usePollStore();
 
@@ -45,12 +47,13 @@ export default function MainDashboard({
   const [gameOpen, setGameOpen] = useState(false);
   const [isRefreshingSessions, setIsRefreshingSessions] = useState(false);
 
-  // 로그인 상태가 없으면 /login으로 이동 (세션스토리지 초기화 시)
+  // sessionStorage 복원 완료 후에만 로그인 상태를 확인
+  // (_hasHydrated 전에는 isLoggedIn이 항상 false이므로 복원을 기다림)
   useEffect(() => {
-    if (!isLoggedIn) {
+    if (_hasHydrated && !isLoggedIn) {
       router.push("/login");
     }
-  }, [isLoggedIn, router]);
+  }, [isLoggedIn, _hasHydrated, router]);
 
   // 서버에서 받은 초기 데이터를 스토어에 저장
   useEffect(() => {
@@ -77,6 +80,14 @@ export default function MainDashboard({
     }
   }
 
+  // PWA 전용 당겨서 새로고침 (브라우저에서는 비활성화)
+  const { pullDistance, isPWA } = usePullToRefresh(
+    handleRefreshSessions,
+    isRefreshingSessions,
+  );
+
+  // sessionStorage 복원 전 또는 미로그인 시 렌더링하지 않음
+  if (!_hasHydrated) return null;
   if (!isLoggedIn) return null;
 
   return (
@@ -84,6 +95,24 @@ export default function MainDashboard({
       <Header />
 
       <main className="flex-1 max-w-2xl mx-auto w-full px-4 py-6 pb-40">
+        {/* PWA 당겨서 새로고침 인디케이터 */}
+        {isPWA && (isRefreshingSessions || pullDistance > 0) && (
+          <div
+            className="flex items-center justify-center overflow-hidden -mt-4 mb-2"
+            style={{ height: isRefreshingSessions ? 44 : Math.round(pullDistance * 0.55) }}
+          >
+            <Loader2
+              className={`w-5 h-5 text-amber-700 ${isRefreshingSessions ? "animate-spin" : ""}`}
+              style={{
+                opacity: Math.min(pullDistance / 60, 1),
+                transform: isRefreshingSessions
+                  ? undefined
+                  : `rotate(${pullDistance * 3}deg)`,
+              }}
+            />
+          </div>
+        )}
+
         {/* 최상위 탭: 커피주문 / 투표 */}
         <Tabs defaultValue="coffee" className="w-full">
           <TabsList className="w-full mb-6">
