@@ -2,6 +2,7 @@
  * 세션 상세 모달 — 현재 세션의 주문 목록을 보여주고 주문 추가/수정/취소를 지원
  * - 세션 생성자는 세션을 마감하거나 재오픈할 수 있음
  * - Realtime 업데이트는 상위(page.tsx)에서 sessionStore를 통해 전달됨
+ * - 새로고침 버튼으로 언제든지 최신 주문 현황을 수동으로 갱신 가능
  */
 "use client";
 
@@ -14,11 +15,12 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Loader2, RefreshCw } from "lucide-react";
 import OrderGroupCard from "@/components/orders/OrderGroupCard";
 import OrderModal from "@/components/orders/OrderModal";
 import { groupOrders } from "@/lib/utils/groupOrders";
 import { timeAgo } from "@/lib/utils/timeAgo";
-import { closeSession, reopenSession } from "@/lib/actions/sessionActions";
+import { closeSession, reopenSession, getSessionById } from "@/lib/actions/sessionActions";
 import { cancelOrder } from "@/lib/actions/orderActions";
 import { useSessionStore } from "@/lib/stores/sessionStore";
 import type { Session, Order, PartId } from "@/types";
@@ -38,12 +40,13 @@ export default function SessionDetailModal({
   currentUserName,
   currentUserPart,
 }: SessionDetailModalProps) {
-  const { updateSessionStatus, addOrderToSession, updateOrderInSession, removeOrderFromSession } =
+  const { updateSessionStatus, addOrderToSession, updateOrderInSession, removeOrderFromSession, replaceSession } =
     useSessionStore();
 
   const [orderModalOpen, setOrderModalOpen] = useState(false);
   const [editingOrder, setEditingOrder] = useState<Order | undefined>(undefined);
   const [actionLoading, setActionLoading] = useState(false);
+  const [isRefreshing, setIsRefreshing] = useState(false);
 
   const isOpen = session.status === "open";
   const isCreator = session.creator === currentUserName;
@@ -69,6 +72,16 @@ export default function SessionDetailModal({
       if (!result.error) updateSessionStatus(session.id, "open");
     } finally {
       setActionLoading(false);
+    }
+  }
+
+  async function handleRefresh() {
+    setIsRefreshing(true);
+    try {
+      const result = await getSessionById(session.id);
+      if (result.data) replaceSession(result.data);
+    } finally {
+      setIsRefreshing(false);
     }
   }
 
@@ -110,14 +123,26 @@ export default function SessionDetailModal({
                   <p className="text-xs text-gray-400">{timeAgo(session.created_at)} · {session.creator}</p>
                 </div>
               </div>
-              {/* mr-8: 닫기 버튼(size-7=28px, right-2=8px)과의 겹침 방지 */}
-              <Badge
-                variant={isOpen ? "default" : "secondary"}
-                style={isOpen ? { background: session.store_color } : undefined}
-                className="mr-8"
-              >
-                {isOpen ? "접수중" : "마감"}
-              </Badge>
+              {/* 상태 뱃지 + 새로고침 버튼 묶음 — mr-8: 닫기 버튼과의 겹침 방지 */}
+              <div className="flex items-center gap-1 mr-8">
+                <Badge
+                  variant={isOpen ? "default" : "secondary"}
+                  style={isOpen ? { background: session.store_color } : undefined}
+                >
+                  {isOpen ? "접수중" : "마감"}
+                </Badge>
+                <button
+                  onClick={handleRefresh}
+                  disabled={isRefreshing}
+                  className="p-1.5 rounded-full text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors disabled:opacity-50"
+                  title="주문 목록 새로고침"
+                >
+                  {isRefreshing
+                    ? <Loader2 className="w-4 h-4 animate-spin" />
+                    : <RefreshCw className="w-4 h-4" />
+                  }
+                </button>
+              </div>
             </div>
           </DialogHeader>
 

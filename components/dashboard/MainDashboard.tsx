@@ -21,6 +21,7 @@ import { usePollStore } from "@/lib/stores/pollStore";
 import { useAuthStore } from "@/lib/stores/authStore";
 import { useRealtimeSessions } from "@/hooks/useRealtimeSessions";
 import { useRealtimePolls } from "@/hooks/useRealtimePolls";
+import { getSessions } from "@/lib/actions/sessionActions";
 import type { Session, Poll, PartId } from "@/types";
 
 interface MainDashboardProps {
@@ -42,6 +43,7 @@ export default function MainDashboard({
   const [createSessionModalOpen, setCreateSessionModalOpen] = useState(false);
   const [createPollModalOpen, setCreatePollModalOpen]       = useState(false);
   const [gameOpen, setGameOpen] = useState(false);
+  const [isRefreshingSessions, setIsRefreshingSessions] = useState(false);
 
   // 로그인 상태가 없으면 /login으로 이동 (세션스토리지 초기화 시)
   useEffect(() => {
@@ -63,6 +65,17 @@ export default function MainDashboard({
   const activePart = (part || initialPart) as PartId;
   useRealtimeSessions(activePart);
   useRealtimePolls(activePart);
+
+  // 세션 목록 수동 새로고침 — Realtime이 누락한 변경사항을 DB에서 직접 재조회
+  async function handleRefreshSessions() {
+    setIsRefreshingSessions(true);
+    try {
+      const result = await getSessions(activePart);
+      if (result.data) setSessions(result.data);
+    } finally {
+      setIsRefreshingSessions(false);
+    }
+  }
 
   if (!isLoggedIn) return null;
 
@@ -102,6 +115,8 @@ export default function MainDashboard({
               sessions={sessions}
               currentUserName={name}
               currentUserPart={part}
+              onRefresh={handleRefreshSessions}
+              isRefreshing={isRefreshingSessions}
             />
           </TabsContent>
 

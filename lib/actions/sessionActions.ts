@@ -193,6 +193,44 @@ export async function deleteSession(
   }
 }
 
+/** 단일 세션 조회 — orders JOIN 포함, 새로고침 버튼에서 호출 */
+export async function getSessionById(
+  sessionId: string
+): Promise<ActionResult<Session>> {
+  const auth = await requireAuth();
+  if (!auth.ok) return { data: null, error: auth.error };
+
+  try {
+    const supabase = createServerClient();
+
+    const { data: session, error } = await supabase
+      .from("sessions")
+      .select("*, orders(*)")
+      .eq("id", sessionId)
+      .single();
+
+    if (error) throw error;
+    if (!session) return { data: null, error: "세션을 찾을 수 없습니다." };
+
+    const result: Session = {
+      ...session,
+      store_id: session.store_id as Session["store_id"],
+      creator_part: session.creator_part as PartId,
+      status: session.status as Session["status"],
+      orders: (session.orders ?? []).map((o: Record<string, unknown>) => ({
+        ...(o as object),
+        part: o.part as PartId,
+        temp: o.temp as "HOT" | "ICE",
+      })),
+    };
+
+    return { data: result, error: null };
+  } catch (err) {
+    const message = getErrorMessage(err, "세션 조회에 실패했습니다.");
+    return { data: null, error: message };
+  }
+}
+
 /** 세션 재오픈 (closed → open) */
 export async function reopenSession(
   sessionId: string

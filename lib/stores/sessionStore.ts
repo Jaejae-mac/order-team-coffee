@@ -38,6 +38,9 @@ interface SessionStore {
 
   // Realtime: 서버에서 세션 변경이 감지되면 업데이트
   upsertSession: (session: Omit<Session, "orders">) => void;
+
+  // 새로고침: 단일 세션 전체(주문 포함)를 최신 데이터로 교체
+  replaceSession: (session: Session) => void;
 }
 
 export const useSessionStore = create<SessionStore>((set) => ({
@@ -94,6 +97,12 @@ export const useSessionStore = create<SessionStore>((set) => ({
   removeSession: (sessionId) =>
     set((state) => ({
       sessions: state.sessions.filter((s) => s.id !== sessionId),
+    })),
+
+  // 새로고침 버튼: 단일 세션 전체(주문 포함)를 최신 데이터로 교체
+  replaceSession: (session) =>
+    set((state) => ({
+      sessions: state.sessions.map((s) => (s.id === session.id ? session : s)),
     })),
 
   // Realtime에서 세션 변경을 받으면 기존 세션을 교체하거나 새로 추가
