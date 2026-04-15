@@ -6,7 +6,7 @@
 "use client";
 
 import { useState } from "react";
-import { Loader2 } from "lucide-react";
+import { Loader2, Plus } from "lucide-react";
 import DrinkCard from "@/components/drink/DrinkCard";
 import { PARTS } from "@/lib/constants/parts";
 import type { GroupedOrder, PartId } from "@/types";
@@ -69,11 +69,11 @@ export default function OrderGroupCard({
           {isOpen && onQuickAdd && (
             <button
               onClick={() => onQuickAdd(group.menu, group.temp, group.size)}
-              className="w-5 h-5 rounded-full flex items-center justify-center text-white text-xs font-bold shrink-0 transition-opacity hover:opacity-80 active:opacity-60"
+              className="w-5 h-5 rounded-full flex items-center justify-center text-white shrink-0 transition-opacity hover:opacity-80 active:opacity-60"
               style={{ background: storeColor }}
               title={`${group.menu} 동일 메뉴 추가`}
             >
-              +
+              <Plus className="w-3 h-3" strokeWidth={3} />
             </button>
           )}
         </div>
