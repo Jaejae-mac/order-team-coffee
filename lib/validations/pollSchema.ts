@@ -47,3 +47,15 @@ export type CreatePollInput        = z.infer<typeof CreatePollSchema>;
 export type CastVoteInput          = z.infer<typeof CastVoteSchema>;
 export type CastMultipleVotesInput = z.infer<typeof CastMultipleVotesSchema>;
 export type ChangeVoteInput        = z.infer<typeof ChangeVoteSchema>;
+
+// 회식날짜취합 투표 생성 스키마
+export const CreateDateCollectPollSchema = z.object({
+  title:       z.string().min(1, "제목을 입력해주세요.").max(100, "제목은 100자 이내로 입력해주세요."),
+  description: z.string().max(500, "내용은 500자 이내로 입력해주세요.").default(""),
+  targetMonth: z.string().regex(/^\d{4}-\d{2}$/, "올바른 월 형식이 아닙니다. (YYYY-MM)"),
+  closesAt:    z.string().min(1, "마감 기한을 입력해주세요."),
+  creator:     z.string().min(1).max(20),
+  creatorPart: z.enum(["channel", "business", "pay"]),
+});
+
+export type CreateDateCollectPollInput = z.infer<typeof CreateDateCollectPollSchema>;

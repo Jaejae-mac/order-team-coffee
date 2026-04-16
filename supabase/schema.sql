@@ -146,3 +146,14 @@ CREATE POLICY "service_all_poll_votes"   ON poll_votes   FOR ALL TO service_role
 -- ALTER TABLE polls ADD COLUMN IF NOT EXISTS allow_multiple BOOLEAN NOT NULL DEFAULT FALSE;
 -- ALTER TABLE poll_votes DROP CONSTRAINT IF EXISTS poll_votes_poll_id_voter_name_key;
 -- ALTER TABLE poll_votes ADD CONSTRAINT poll_votes_unique_per_option UNIQUE (poll_id, voter_name, option_id);
+
+
+-- ============================================================
+-- 회식날짜취합 기능 마이그레이션 (이미 테이블이 존재하는 경우 실행)
+-- Supabase SQL Editor에서 아래 구문만 따로 실행하세요.
+-- ============================================================
+-- ALTER TABLE polls
+--   ADD COLUMN IF NOT EXISTS poll_type TEXT NOT NULL DEFAULT 'regular'
+--     CHECK (poll_type IN ('regular', 'date_collect'));
+-- ALTER TABLE polls
+--   ADD COLUMN IF NOT EXISTS target_month TEXT;  -- 'YYYY-MM' 형식 (date_collect 전용)
