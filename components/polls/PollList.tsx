@@ -10,6 +10,7 @@ import { useState } from "react";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import PollCard from "@/components/polls/PollCard";
 import PollDetailModal from "@/components/polls/PollDetailModal";
+import DateCollectDetailModal from "@/components/polls/DateCollectDetailModal";
 import type { Poll, PartId } from "@/types";
 
 interface PollListProps {
@@ -83,16 +84,26 @@ export default function PollList({ polls, currentUserName, currentUserPart }: Po
         </TabsContent>
       </Tabs>
 
-      {/* 투표 상세 모달 */}
+      {/* 투표 상세 모달 — 타입에 따라 분기 */}
       {selectedPoll && currentUserPart !== "" && (
-        <PollDetailModal
-          poll={selectedPoll}
-          open={Boolean(selectedPollId)}
-          onClose={() => setSelectedPollId(null)}
-          currentUserName={currentUserName}
-          currentUserPart={currentUserPart}
-          resultOnly={resultOnly}
-        />
+        selectedPoll.poll_type === "date_collect" ? (
+          <DateCollectDetailModal
+            poll={selectedPoll}
+            open={Boolean(selectedPollId)}
+            onClose={() => setSelectedPollId(null)}
+            currentUserName={currentUserName}
+            currentUserPart={currentUserPart}
+          />
+        ) : (
+          <PollDetailModal
+            poll={selectedPoll}
+            open={Boolean(selectedPollId)}
+            onClose={() => setSelectedPollId(null)}
+            currentUserName={currentUserName}
+            currentUserPart={currentUserPart}
+            resultOnly={resultOnly}
+          />
+        )
       )}
     </>
   );

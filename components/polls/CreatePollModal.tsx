@@ -16,7 +16,8 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
-import { createPoll } from "@/lib/actions/pollActions";
+import { createPoll, createDateCollectPoll } from "@/lib/actions/pollActions";
+import { formatKoreanMonth } from "@/lib/utils/dateUtils";
 import type { Poll, PartId } from "@/types";
 
 interface CreatePollModalProps {
@@ -44,15 +45,17 @@ export default function CreatePollModal({
   const [closeMinute, setCloseMinute] = useState("59");
   // 복수선택 허용 여부
   const [allowMultiple, setAllowMultiple] = useState(false);
+  // 회식날짜취합 모드
+  const [isDateCollect, setIsDateCollect] = useState(false);
+  const [targetMonth, setTargetMonth] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
 
-  // 유효성 검사: 제목 필수, 선택지 2개 이상 모두 입력, 마감 날짜 필수
+  // 유효성 검사
   const filledOptions = options.filter((o) => o.trim().length > 0);
-  const canCreate =
-    title.trim().length > 0 &&
-    filledOptions.length >= 2 &&
-    closeDate.length > 0;
+  const canCreate = isDateCollect
+    ? title.trim().length > 0 && targetMonth.length > 0 && closeDate.length > 0
+    : title.trim().length > 0 && filledOptions.length >= 2 && closeDate.length > 0;
 
   /** 선택지 추가 (최대 10개) */
   function addOption() {
@@ -81,6 +84,24 @@ export default function CreatePollModal({
       const closesAt = new Date(
         `${closeDate}T${closeHour.padStart(2, "0")}:${closeMinute.padStart(2, "0")}:00`
       ).toISOString();
+
+      if (isDateCollect) {
+        const result = await createDateCollectPoll({
+          title:       title.trim(),
+          description: description.trim(),
+          targetMonth,
+          closesAt,
+          creator:     userName,
+          creatorPart: userPart as PartId,
+        });
+        if (result.error || !result.data) {
+          setError(result.error ?? "날짜취합 생성에 실패했습니다.");
+          return;
+        }
+        onCreated(result.data);
+        handleClose();
+        return;
+      }
 
       const result = await createPoll({
         title:         title.trim(),
@@ -114,6 +135,8 @@ export default function CreatePollModal({
     setCloseHour("23");
     setCloseMinute("59");
     setAllowMultiple(false);
+    setIsDateCollect(false);
+    setTargetMonth("");
     setError("");
     onClose();
   }
@@ -167,8 +190,8 @@ export default function CreatePollModal({
             />
           </div>
 
-          {/* 선택지 입력 */}
-          <div>
+          {/* 선택지 입력 (일반 투표 전용) */}
+          {!isDateCollect && <div>
             <label className="text-sm font-medium text-gray-700 block mb-2">
               선택지 <span className="text-red-500">*</span>
               <span className="text-gray-400 font-normal ml-1">({options.length}/10)</span>
@@ -211,7 +234,7 @@ export default function CreatePollModal({
                 </button>
               )}
             </div>
-          </div>
+          </div>}
 
           {/* 마감 기한 입력 */}
           <div>
@@ -250,20 +273,69 @@ export default function CreatePollModal({
             </div>
           </div>
 
-          {/* 복수선택 허용 토글 */}
+          {/* 회식날짜취합 토글 */}
           <div className="flex items-center justify-between py-1">
             <div>
-              <p className="text-sm font-medium text-gray-700">복수선택 허용</p>
-              {allowMultiple && (
-                <p className="text-xs text-violet-500 mt-0.5">여러 선택지를 동시에 고를 수 있어요</p>
+              <p className="text-sm font-medium text-gray-700">회식날짜취합</p>
+              {isDateCollect && (
+                <p className="text-xs text-emerald-600 mt-0.5">
+                  선택한 월의 영업일(월~금)을 선택지로 자동 생성해요
+                </p>
               )}
             </div>
             <Switch
-              checked={allowMultiple}
-              onCheckedChange={setAllowMultiple}
-              aria-label="복수선택 허용 여부"
+              checked={isDateCollect}
+              onCheckedChange={(v) => {
+                setIsDateCollect(v);
+                if (v) {
+                  setAllowMultiple(false);
+                  setOptions(["", ""]);
+                } else {
+                  setTargetMonth("");
+                }
+                setError("");
+              }}
+              aria-label="회식날짜취합 여부"
             />
           </div>
+
+          {/* 회식날짜취합: 월 선택 */}
+          {isDateCollect && (
+            <div>
+              <label className="text-sm font-medium text-gray-700 block mb-1">
+                대상 월 <span className="text-red-500">*</span>
+              </label>
+              <input
+                type="month"
+                value={targetMonth}
+                onChange={(e) => setTargetMonth(e.target.value)}
+                min={new Date().toISOString().slice(0, 7)}
+                className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring cursor-pointer"
+              />
+              {targetMonth && (
+                <p className="text-xs text-gray-400 mt-1 pl-1">
+                  {formatKoreanMonth(targetMonth)} 영업일이 선택지로 생성됩니다
+                </p>
+              )}
+            </div>
+          )}
+
+          {/* 일반 투표: 복수선택 허용 토글 */}
+          {!isDateCollect && (
+            <div className="flex items-center justify-between py-1">
+              <div>
+                <p className="text-sm font-medium text-gray-700">복수선택 허용</p>
+                {allowMultiple && (
+                  <p className="text-xs text-violet-500 mt-0.5">여러 선택지를 동시에 고를 수 있어요</p>
+                )}
+              </div>
+              <Switch
+                checked={allowMultiple}
+                onCheckedChange={setAllowMultiple}
+                aria-label="복수선택 허용 여부"
+              />
+            </div>
+          )}
 
           {error && <p className="text-red-500 text-sm">{error}</p>}
 
@@ -272,7 +344,11 @@ export default function CreatePollModal({
             disabled={!canCreate || isLoading}
             className="w-full bg-violet-600 hover:bg-violet-700"
           >
-            {isLoading ? "생성 중..." : "투표 만들기"}
+            {isLoading
+              ? "생성 중..."
+              : isDateCollect
+              ? "날짜취합 만들기"
+              : "투표 만들기"}
           </Button>
         </div>
       </DialogContent>

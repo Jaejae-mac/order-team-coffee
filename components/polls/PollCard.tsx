@@ -14,6 +14,7 @@ import VoterCountBadge from "@/components/polls/VoterCountBadge";
 import { PARTS } from "@/lib/constants/parts";
 import { closePoll, deletePoll } from "@/lib/actions/pollActions";
 import { usePollStore } from "@/lib/stores/pollStore";
+import { formatKoreanMonth } from "@/lib/utils/dateUtils";
 import type { Poll } from "@/types";
 
 interface PollCardProps {
@@ -28,10 +29,15 @@ const SNAP_THRESHOLD   = 40;
 
 export default function PollCard({ poll, currentUserName, onClick, onVoterClick }: PollCardProps) {
   const { updatePollStatus, removePoll } = usePollStore();
-  const isOpen = poll.status === "open";
-  const isMyPoll = poll.creator === currentUserName;
-  const creatorPart = PARTS.find((p) => p.id === poll.creator_part);
-  const totalVotes = poll.options.reduce((sum, opt) => sum + opt.vote_count, 0);
+  const isOpen         = poll.status === "open";
+  const isMyPoll       = poll.creator === currentUserName;
+  const creatorPart    = PARTS.find((p) => p.id === poll.creator_part);
+  const totalVotes     = poll.options.reduce((sum, opt) => sum + opt.vote_count, 0);
+  const isDateCollect  = poll.poll_type === "date_collect";
+  // 날짜취합: 불가를 선택한 유니크 참여자 수
+  const participantCount = isDateCollect
+    ? new Set(poll.options.flatMap((opt) => opt.voters.map((v) => v.name))).size
+    : totalVotes;
 
   // ── 카운트다운 타이머 ────────────────────────────────────────
   const [countdown, setCountdown] = useState("");
@@ -167,18 +173,39 @@ export default function PollCard({ poll, currentUserName, onClick, onVoterClick 
         {/* 상단: 아이콘 + 제목 + 상태 뱃지 */}
         <div className="flex items-start justify-between gap-2 mb-2.5">
           <div className="flex items-center gap-2.5 min-w-0">
-            <div className="w-9 h-9 rounded-xl bg-violet-100 flex items-center justify-center flex-shrink-0">
-              <svg viewBox="0 0 24 24" className="w-4.5 h-4.5 text-violet-600" style={{ width: 18, height: 18 }} fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                <line x1="18" y1="20" x2="18" y2="10" />
-                <line x1="12" y1="20" x2="12" y2="4" />
-                <line x1="6" y1="20" x2="6" y2="14" />
-              </svg>
+            <div
+              className={`w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 ${
+                isDateCollect ? "bg-emerald-100" : "bg-violet-100"
+              }`}
+            >
+              {isDateCollect ? (
+                /* 달력 아이콘 */
+                <svg viewBox="0 0 24 24" style={{ width: 18, height: 18 }} className="text-emerald-600" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                  <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
+                  <line x1="16" y1="2" x2="16" y2="6" />
+                  <line x1="8" y1="2" x2="8" y2="6" />
+                  <line x1="3" y1="10" x2="21" y2="10" />
+                </svg>
+              ) : (
+                /* 바 차트 아이콘 */
+                <svg viewBox="0 0 24 24" className="text-violet-600" style={{ width: 18, height: 18 }} fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                  <line x1="18" y1="20" x2="18" y2="10" />
+                  <line x1="12" y1="20" x2="12" y2="4" />
+                  <line x1="6" y1="20" x2="6" y2="14" />
+                </svg>
+              )}
             </div>
             <p className="font-semibold text-gray-800 text-sm leading-snug truncate">{poll.title}</p>
           </div>
           <div className="flex items-center gap-1.5 flex-shrink-0">
-            {/* 복수선택 뱃지 */}
-            {poll.allow_multiple && (
+            {/* 날짜취합 뱃지 */}
+            {isDateCollect && (
+              <span className="text-xs px-1.5 py-0.5 rounded-full bg-emerald-100 text-emerald-700 font-medium">
+                날짜취합
+              </span>
+            )}
+            {/* 복수선택 뱃지 (일반 투표 전용) */}
+            {!isDateCollect && poll.allow_multiple && (
               <span className="text-xs px-1.5 py-0.5 rounded-full bg-blue-100 text-blue-600 font-medium">
                 복수선택
               </span>
@@ -196,27 +223,36 @@ export default function PollCard({ poll, currentUserName, onClick, onVoterClick 
           <p className="text-xs text-gray-500 mb-2.5 line-clamp-1 pl-11">{poll.description}</p>
         )}
 
-        {/* 선택지 미리보기 (최대 3개) */}
-        <div className="pl-11 space-y-1 mb-3">
-          {poll.options.slice(0, 3).map((opt, idx) => (
-            <div key={opt.id} className="flex items-center gap-1.5 text-xs text-gray-600">
-              <span className="text-gray-400 w-3 flex-shrink-0">{idx + 1}.</span>
-              <span className="truncate">{opt.label}</span>
-            </div>
-          ))}
-          {poll.options.length > 3 && (
-            <p className="text-xs text-gray-400 pl-4">+{poll.options.length - 3}개 더</p>
-          )}
-        </div>
+        {/* 날짜취합: 대상 월 표시 */}
+        {isDateCollect && poll.target_month ? (
+          <div className="pl-11 mb-3">
+            <p className="text-xs text-emerald-700 font-medium">
+              {formatKoreanMonth(poll.target_month)} 영업일 ({poll.options.length}일)
+            </p>
+          </div>
+        ) : (
+          /* 일반 투표: 선택지 미리보기 (최대 3개) */
+          <div className="pl-11 space-y-1 mb-3">
+            {poll.options.slice(0, 3).map((opt, idx) => (
+              <div key={opt.id} className="flex items-center gap-1.5 text-xs text-gray-600">
+                <span className="text-gray-400 w-3 flex-shrink-0">{idx + 1}.</span>
+                <span className="truncate">{opt.label}</span>
+              </div>
+            ))}
+            {poll.options.length > 3 && (
+              <p className="text-xs text-gray-400 pl-4">+{poll.options.length - 3}개 더</p>
+            )}
+          </div>
+        )}
 
-        {/* 하단: 마감 타이머 + 투표 인원 + 생성자 */}
+        {/* 하단: 마감 타이머 + 참여 인원 + 생성자 */}
         <div className="flex items-center justify-between pt-1 border-t border-gray-50">
           <div className="flex items-center gap-1 text-xs text-gray-400">
             <Clock className="w-3 h-3" />
             <span>{countdown || (isOpen ? "계산 중..." : "마감됨")}</span>
           </div>
           <div className="flex items-center gap-2">
-            <VoterCountBadge count={totalVotes} onClick={onVoterClick} />
+            <VoterCountBadge count={participantCount} onClick={onVoterClick} />
             {creatorPart && (
               <span
                 className="text-xs font-medium px-2 py-0.5 rounded-full"

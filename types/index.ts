@@ -116,6 +116,9 @@ export interface PollVote {
   created_at: string;
 }
 
+// ── 투표 타입 ─────────────────────────────────────────────────
+export type PollType = "regular" | "date_collect";
+
 // ── 투표 ──────────────────────────────────────────────────────
 export interface Poll {
   id: string;
@@ -124,8 +127,10 @@ export interface Poll {
   creator: string;
   creator_part: PartId;
   status: PollStatus;
-  closes_at: string;       // ISO 8601 타임스탬프 (마감 기한)
-  allow_multiple: boolean; // 복수선택 허용 여부
+  closes_at: string;        // ISO 8601 타임스탬프 (마감 기한)
+  allow_multiple: boolean;  // 복수선택 허용 여부
+  poll_type: PollType;      // 'regular' | 'date_collect'
+  target_month?: string;    // 'YYYY-MM' (date_collect 전용)
   created_at: string;
-  options: PollOption[];   // 선택지 + 투표 결과 포함
+  options: PollOption[];    // 선택지 + 투표 결과 포함
 }

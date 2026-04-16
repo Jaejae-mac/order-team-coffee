@@ -24,12 +24,15 @@ import {
   CastVoteSchema,
   ChangeVoteSchema,
   CastMultipleVotesSchema,
+  CreateDateCollectPollSchema,
   type CreatePollInput,
   type CastVoteInput,
   type ChangeVoteInput,
   type CastMultipleVotesInput,
+  type CreateDateCollectPollInput,
 } from "@/lib/validations/pollSchema";
-import type { ActionResult, Poll, PollOption, PartId } from "@/types";
+import { getWeekdaysInMonth } from "@/lib/utils/dateUtils";
+import type { ActionResult, Poll, PollOption, PollType, PartId } from "@/types";
 
 /** 인증 확인 헬퍼 — verified 쿠키가 없으면 에러 반환 */
 async function requireAuth(): Promise<{ ok: true } | { ok: false; error: string }> {
@@ -54,6 +57,8 @@ function mapRawPoll(raw: {
   status: string;
   closes_at: string;
   created_at: string;
+  poll_type?: string;
+  target_month?: string | null;
   poll_options: Array<{
     id: string;
     poll_id: string;
@@ -94,6 +99,8 @@ function mapRawPoll(raw: {
     status:         raw.status as Poll["status"],
     closes_at:      raw.closes_at,
     allow_multiple: (raw as { allow_multiple?: boolean }).allow_multiple ?? false,
+    poll_type:      (raw.poll_type ?? "regular") as PollType,
+    target_month:   raw.target_month ?? undefined,
     created_at:     raw.created_at,
     options,
   };
@@ -434,6 +441,87 @@ export async function reopenPoll(pollId: string, creatorName: string): Promise<A
     return { data: undefined, error: null };
   } catch (err) {
     const message = getErrorMessage(err, "투표 재오픈에 실패했습니다.");
+    return { data: null, error: message };
+  }
+}
+
+/** 회식날짜취합 투표 생성 — 선택 월의 영업일(월~금)을 선택지로 자동 생성 */
+export async function createDateCollectPoll(
+  input: CreateDateCollectPollInput
+): Promise<ActionResult<Poll>> {
+  const auth = await requireAuth();
+  if (!auth.ok) return { data: null, error: auth.error };
+
+  try {
+    const parsed = CreateDateCollectPollSchema.safeParse(input);
+    if (!parsed.success) {
+      return { data: null, error: parsed.error.issues[0].message };
+    }
+
+    const supabase = createServerClient();
+    const d = parsed.data;
+
+    // 1. 해당 월의 영업일(월~금) 목록 계산
+    const [year, month] = d.targetMonth.split("-").map(Number);
+    const weekdays = getWeekdaysInMonth(year, month);
+    if (weekdays.length === 0) {
+      return { data: null, error: "해당 월에 영업일이 없습니다." };
+    }
+
+    // 2. 투표 생성 (poll_type: date_collect, allow_multiple: true 고정)
+    const { data: poll, error: pollError } = await supabase
+      .from("polls")
+      .insert({
+        title:          d.title,
+        description:    d.description,
+        creator:        d.creator,
+        creator_part:   d.creatorPart,
+        status:         "open",
+        closes_at:      d.closesAt,
+        allow_multiple: true,
+        poll_type:      "date_collect",
+        target_month:   d.targetMonth,
+      })
+      .select()
+      .single();
+
+    if (pollError) throw pollError;
+
+    // 3. 영업일 목록을 선택지로 일괄 생성 (label = 'YYYY-MM-DD', position = 순서)
+    const optionRows = weekdays.map((dateStr, idx) => ({
+      poll_id:  poll.id,
+      label:    dateStr,
+      position: idx,
+    }));
+
+    const { data: options, error: optError } = await supabase
+      .from("poll_options")
+      .insert(optionRows)
+      .select();
+
+    if (optError) throw optError;
+
+    const result: Poll = {
+      ...poll,
+      creator_part:   poll.creator_part as PartId,
+      status:         poll.status as Poll["status"],
+      allow_multiple: true,
+      poll_type:      "date_collect",
+      target_month:   poll.target_month ?? undefined,
+      options: (options ?? []).map((opt) => ({
+        id:         opt.id,
+        poll_id:    opt.poll_id,
+        label:      opt.label,
+        position:   opt.position,
+        created_at: opt.created_at,
+        vote_count: 0,
+        voters:     [],
+      })),
+    };
+
+    return { data: result, error: null };
+  } catch (err) {
+    const message = getErrorMessage(err, "날짜취합 투표 생성에 실패했습니다.");
     return { data: null, error: message };
   }
 }
