@@ -30,7 +30,7 @@ export const CastVoteSchema = z.object({
 // 복수선택 투표 스키마 — 여러 선택지를 한 번에 제출 (첫 투표 + 재투표 통합)
 export const CastMultipleVotesSchema = z.object({
   pollId:    z.string().uuid("올바른 투표 ID가 아닙니다."),
-  optionIds: z.array(z.string().uuid("올바른 선택지 ID가 아닙니다.")).min(1, "최소 1개를 선택해주세요."),
+  optionIds: z.array(z.string().uuid("올바른 선택지 ID가 아닙니다.")),
   voterName: z.string().min(1).max(20),
   voterPart: z.enum(["channel", "business", "pay"]),
 });

@@ -6,7 +6,7 @@
  */
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Loader2 } from "lucide-react";
 import Header from "@/components/layout/Header";
@@ -56,12 +56,20 @@ export default function MainDashboard({
     }
   }, [isLoggedIn, _hasHydrated, router]);
 
-  // 서버에서 받은 초기 데이터를 스토어에 저장
+  // 서버에서 받은 초기 데이터를 스토어에 저장 (마운트 시 1회만 — 이후 라우터 캐시 갱신으로
+  // initialPolls/initialSessions가 바뀌어도 Realtime이 유지하는 최신 상태를 덮어쓰지 않음)
+  const initialSessionsSet = useRef(false);
+  const initialPollsSet    = useRef(false);
+
   useEffect(() => {
+    if (initialSessionsSet.current) return;
+    initialSessionsSet.current = true;
     setSessions(initialSessions);
   }, [initialSessions, setSessions]);
 
   useEffect(() => {
+    if (initialPollsSet.current) return;
+    initialPollsSet.current = true;
     setPolls(initialPolls);
   }, [initialPolls, setPolls]);
 

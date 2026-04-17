@@ -34,13 +34,20 @@ import {
 import { getWeekdaysInMonth } from "@/lib/utils/dateUtils";
 import type { ActionResult, Poll, PollOption, PollType, PartId } from "@/types";
 
-/** 인증 확인 헬퍼 — verified 쿠키가 없으면 에러 반환 */
+/** 인증 확인 헬퍼 — verified 쿠키가 없으면 에러 반환, 있으면 24시간 슬라이딩 윈도우 갱신 */
 async function requireAuth(): Promise<{ ok: true } | { ok: false; error: string }> {
   const cookieStore = await cookies();
   const verified = cookieStore.get("verified")?.value;
   if (verified !== "true") {
     return { ok: false, error: "인증이 필요합니다." };
   }
+  cookieStore.set("verified", "true", {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === "production",
+    sameSite: "lax",
+    maxAge: 60 * 60 * 24,
+    path: "/",
+  });
   return { ok: true };
 }
 
@@ -290,16 +297,18 @@ export async function castMultipleVotes(input: CastMultipleVotesInput): Promise<
     if (new Date(poll.closes_at) < new Date()) return { data: null, error: "마감 기한이 지난 투표입니다." };
     if (!poll.allow_multiple) return { data: null, error: "단일선택 투표입니다." };
 
-    // 2. 선택한 optionIds가 이 poll의 유효한 선택지인지 검증
-    const { data: validOptions, error: optError } = await supabase
-      .from("poll_options")
-      .select("id")
-      .eq("poll_id", d.pollId)
-      .in("id", d.optionIds);
+    // 2. 선택한 optionIds가 이 poll의 유효한 선택지인지 검증 (빈 배열이면 스킵)
+    if (d.optionIds.length > 0) {
+      const { data: validOptions, error: optError } = await supabase
+        .from("poll_options")
+        .select("id")
+        .eq("poll_id", d.pollId)
+        .in("id", d.optionIds);
 
-    if (optError) throw optError;
-    if (!validOptions || validOptions.length !== d.optionIds.length) {
-      return { data: null, error: "유효하지 않은 선택지가 포함되어 있습니다." };
+      if (optError) throw optError;
+      if (!validOptions || validOptions.length !== d.optionIds.length) {
+        return { data: null, error: "유효하지 않은 선택지가 포함되어 있습니다." };
+      }
     }
 
     // 3. 기존 투표 기록 전부 삭제 (재투표 포함한 통합 처리)
@@ -311,19 +320,21 @@ export async function castMultipleVotes(input: CastMultipleVotesInput): Promise<
 
     if (deleteError) throw deleteError;
 
-    // 4. 새 선택지들을 일괄 삽입
-    const insertRows = d.optionIds.map((optionId) => ({
-      poll_id:    d.pollId,
-      option_id:  optionId,
-      voter_name: d.voterName,
-      voter_part: d.voterPart,
-    }));
+    // 4. 새 선택지들을 일괄 삽입 (빈 배열이면 스킵 = 모든 날짜 가능)
+    if (d.optionIds.length > 0) {
+      const insertRows = d.optionIds.map((optionId) => ({
+        poll_id:    d.pollId,
+        option_id:  optionId,
+        voter_name: d.voterName,
+        voter_part: d.voterPart,
+      }));
 
-    const { error: insertError } = await supabase.from("poll_votes").insert(insertRows);
+      const { error: insertError } = await supabase.from("poll_votes").insert(insertRows);
 
-    if (insertError) {
-      if (insertError.code === "23505") return { data: null, error: "중복 투표가 감지되었습니다." };
-      throw insertError;
+      if (insertError) {
+        if (insertError.code === "23505") return { data: null, error: "중복 투표가 감지되었습니다." };
+        throw insertError;
+      }
     }
 
     return { data: undefined, error: null };
