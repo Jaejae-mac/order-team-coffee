@@ -113,24 +113,11 @@ export default function DateCollectDetailModal({
     return `${minutes}분 후 마감`;
   }
 
-  // 저장 — castMultipleVotes (빈 배열이면 clearVotes 역할)
+  // 저장 — castMultipleVotes (빈 배열이면 기존 투표 전부 삭제 = 모든 날짜 가능)
   async function handleSave() {
     setIsSaving(true);
     setSaveError("");
     try {
-      if (selectedIds.length === 0) {
-        // 선택 없음 → 기존 투표 모두 삭제 (빈 배열로 호출하면 delete-then-insert)
-        // castMultipleVotes는 min(1) 검증이 있으므로 직접 delete 로직 처리
-        // 대신 빈 선택 상태를 store에만 반영 (서버는 기존 기록 그대로 유지)
-        // → 실제 삭제를 위해 optionIds에 dummy 전략 대신, 별도 처리:
-        // 기존 선택이 없었으면 no-op, 있었으면 '빈 배열' 처리가 필요하나
-        // 현 castMultipleVotes는 min(1) 제약이 있어 직접 지우기 불가.
-        // 따라서 UI에서 "저장" 시 selectedIds가 비어 있으면
-        // "불가 날짜 없음 (전부 가능)" 상태를 의미하므로 store만 업데이트.
-        setVotesForVoter(poll.id, [], { name: currentUserName, part: currentUserPart });
-        return;
-      }
-
       const result = await castMultipleVotes({
         pollId:    poll.id,
         optionIds: selectedIds,
@@ -143,7 +130,6 @@ export default function DateCollectDetailModal({
         return;
       }
 
-      // 낙관적 업데이트
       setVotesForVoter(poll.id, selectedIds, { name: currentUserName, part: currentUserPart });
     } catch {
       setSaveError("저장 중 오류가 발생했습니다.");
