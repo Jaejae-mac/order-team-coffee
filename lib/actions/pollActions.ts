@@ -34,20 +34,27 @@ import {
 import { getWeekdaysInMonth } from "@/lib/utils/dateUtils";
 import type { ActionResult, Poll, PollOption, PollType, PartId } from "@/types";
 
-/** 인증 확인 헬퍼 — verified 쿠키가 없으면 에러 반환, 있으면 24시간 슬라이딩 윈도우 갱신 */
+/** 인증 확인 헬퍼 — verified 쿠키가 없으면 에러 반환, 있으면 24시간 슬라이딩 윈도우 갱신
+ *  cookies().set()은 클라이언트 트리거 Server Action에서만 허용되므로 try-catch 처리:
+ *  - SSR 렌더링 중(getPolls/getSessions) → set() 실패, 조용히 무시
+ *  - 뮤테이션 Action(castMultipleVotes 등) → set() 성공, 쿠키 갱신 */
 async function requireAuth(): Promise<{ ok: true } | { ok: false; error: string }> {
   const cookieStore = await cookies();
   const verified = cookieStore.get("verified")?.value;
   if (verified !== "true") {
     return { ok: false, error: "인증이 필요합니다." };
   }
-  cookieStore.set("verified", "true", {
-    httpOnly: true,
-    secure: process.env.NODE_ENV === "production",
-    sameSite: "lax",
-    maxAge: 60 * 60 * 24,
-    path: "/",
-  });
+  try {
+    cookieStore.set("verified", "true", {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "lax",
+      maxAge: 60 * 60 * 24,
+      path: "/",
+    });
+  } catch {
+    // SSR 렌더링 컨텍스트에서는 set()이 허용되지 않아 무시
+  }
   return { ok: true };
 }
 
