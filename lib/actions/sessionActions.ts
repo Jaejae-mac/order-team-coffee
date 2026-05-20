@@ -10,17 +10,23 @@
  * instanceof Error 체크 대신 이 헬퍼를 사용해 메시지를 추출함
  */
 function getErrorMessage(err: unknown, fallback: string): string {
+  let msg: string | null = null;
+
   if (err instanceof Error) {
-    const msg = err.message;
-    if (msg.includes("fetch failed") || msg.includes("환경변수 누락")) {
-      return "DB 서버에 연결할 수 없습니다. 잠시 후 다시 시도해주세요.";
-    }
-    return msg;
+    msg = err.message;
+  } else if (typeof err === "object" && err !== null && "message" in err) {
+    msg = String((err as { message: unknown }).message);
   }
-  if (typeof err === "object" && err !== null && "message" in err) {
-    return String((err as { message: unknown }).message);
+
+  if (msg === null) return fallback;
+
+  // Supabase는 fetch 실패 시 err.toString() = "TypeError: fetch failed" 를
+  // plain object의 message 필드로 래핑하므로 두 경로 모두 여기서 처리
+  if (msg.includes("fetch failed") || msg.includes("환경변수 누락")) {
+    return "DB 서버에 연결할 수 없습니다. 잠시 후 다시 시도해주세요.";
   }
-  return fallback;
+
+  return msg;
 }
 
 import { cookies } from "next/headers";
