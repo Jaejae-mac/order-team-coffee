@@ -37,11 +37,14 @@ export default async function HomePage({ searchParams }: PageProps) {
     console.error("투표 초기 로드 오류:", pollResult.error);
   }
 
+  const initialDbError = sessionResult.error ?? pollResult.error ?? null;
+
   return (
     <MainDashboard
       initialSessions={sessionResult.data ?? []}
       initialPolls={pollResult.data ?? []}
       initialPart={part}
+      initialDbError={initialDbError}
     />
   );
 }

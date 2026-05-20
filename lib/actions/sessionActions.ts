@@ -10,7 +10,13 @@
  * instanceof Error 체크 대신 이 헬퍼를 사용해 메시지를 추출함
  */
 function getErrorMessage(err: unknown, fallback: string): string {
-  if (err instanceof Error) return err.message;
+  if (err instanceof Error) {
+    const msg = err.message;
+    if (msg.includes("fetch failed") || msg.includes("환경변수 누락")) {
+      return "DB 서버에 연결할 수 없습니다. 잠시 후 다시 시도해주세요.";
+    }
+    return msg;
+  }
   if (typeof err === "object" && err !== null && "message" in err) {
     return String((err as { message: unknown }).message);
   }

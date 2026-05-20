@@ -30,12 +30,14 @@ interface MainDashboardProps {
   initialSessions: Session[];
   initialPolls: Poll[];
   initialPart: PartId;
+  initialDbError?: string | null;
 }
 
 export default function MainDashboard({
   initialSessions,
   initialPolls,
   initialPart,
+  initialDbError,
 }: MainDashboardProps) {
   const router = useRouter();
   const { name, part, isLoggedIn, _hasHydrated } = useAuthStore();
@@ -104,6 +106,13 @@ export default function MainDashboard({
       <Header />
 
       <main className="flex-1 max-w-2xl mx-auto w-full px-4 py-6 pb-36">
+        {/* DB 연결 오류 배너 — 초기 데이터 로드 실패 시 표시 */}
+        {initialDbError && (
+          <div className="mb-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+            ⚠️ 데이터를 불러오지 못했습니다: {initialDbError}
+          </div>
+        )}
+
         {/* PWA 당겨서 새로고침 인디케이터 */}
         {isPWA && (isRefreshingSessions || pullDistance > 0) && (
           <div
