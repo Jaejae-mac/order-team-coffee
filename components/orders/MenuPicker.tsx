@@ -11,7 +11,7 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Input } from "@/components/ui/input";
 import DrinkCard from "@/components/drink/DrinkCard";
 import { getMenus } from "@/lib/constants/menus";
-import type { Session } from "@/types";
+import type { Session, MenuItem } from "@/types";
 
 interface MenuPickerProps {
   session: Session;
@@ -19,6 +19,8 @@ interface MenuPickerProps {
   onSelect: (name: string) => void;
   directInput: string;
   onDirectInputChange: (value: string) => void;
+  /** 실시간 갱신 메뉴 — 제공 시 정적 메뉴 대신 사용 */
+  megaMenuOverride?: MenuItem[];
 }
 
 export default function MenuPicker({
@@ -27,13 +29,18 @@ export default function MenuPicker({
   onSelect,
   directInput,
   onDirectInputChange,
+  megaMenuOverride,
 }: MenuPickerProps) {
   const [searchQuery, setSearchQuery] = useState("");
   // 활성 카테고리를 별도 state로 관리 — tabs.tsx 기본 클래스(data-active:bg-background)가
   // CSS 선택자 방식과 충돌하므로 inline style로 활성 탭 스타일을 직접 제어
   const [activeCategory, setActiveCategory] = useState("전체");
 
-  const menus = getMenus(session.store_id);
+  // megaMenuOverride가 있으면 실시간 메뉴를, 없으면 정적 메뉴를 사용
+  const menus =
+    megaMenuOverride && megaMenuOverride.length > 0
+      ? megaMenuOverride
+      : getMenus(session.store_id);
   const isCustomStore = session.store_id === "custom" || menus.length === 0;
 
   // 카테고리 목록 추출 (중복 제거)

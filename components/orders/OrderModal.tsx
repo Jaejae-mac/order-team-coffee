@@ -6,6 +6,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { RefreshCw } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -17,6 +18,7 @@ import { Input } from "@/components/ui/input";
 import MenuPicker from "@/components/orders/MenuPicker";
 import { getSizeOptions, TEMP_OPTIONS } from "@/lib/constants/stores";
 import { addOrder, editOrder } from "@/lib/actions/orderActions";
+import { useMegaMenu } from "@/hooks/useMegaMenu";
 import type { Session, Order } from "@/types";
 
 interface OrderModalProps {
@@ -44,6 +46,10 @@ export default function OrderModal({
 }: OrderModalProps) {
   const isEditMode = Boolean(initialOrder);
   const sizeOptions = getSizeOptions(session.store_id);
+  const isMegaStore = session.store_id === "mega";
+
+  // 메가커피 세션에서만 실시간 메뉴판 갱신 기능 활성화
+  const { menus: megaMenus, loading: menuLoading, error: menuError, refetch } = useMegaMenu({ autoFetch: false });
 
   // 폼 상태 초기화 (수정 모드면 기존 값으로)
   const [selectedMenu, setSelectedMenu] = useState(initialOrder?.menu ?? "");
@@ -134,6 +140,31 @@ export default function OrderModal({
 
         {/* min-w-0: grid 아이템의 기본 min-width: auto를 0으로 재정의 → 자식 컨텐츠가 다이얼로그 너비를 넘지 않도록 방어 */}
         <div className="flex flex-col gap-4 min-w-0">
+
+          {/* 메가커피 세션일 때만 팝업 상단에 메뉴판 갱신 버튼 표시 */}
+          {isMegaStore && (
+            <div className="flex items-center justify-between rounded-lg bg-amber-50 border border-amber-200 px-3 py-2">
+              <span className="text-xs text-amber-700">
+                {megaMenus.length > 0
+                  ? `실시간 메뉴 ${megaMenus.length}개 로드됨`
+                  : "최신 메뉴를 불러올 수 있습니다"}
+              </span>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => refetch(true)}
+                disabled={menuLoading}
+                className="text-amber-700 border-amber-300 hover:bg-amber-100 h-7 gap-1.5"
+              >
+                <RefreshCw className={`w-3 h-3 ${menuLoading ? "animate-spin" : ""}`} />
+                {menuLoading ? "갱신 중..." : "메뉴판 갱신"}
+              </Button>
+            </div>
+          )}
+          {menuError && isMegaStore && (
+            <p className="text-xs text-red-500">{menuError}</p>
+          )}
+
           {/* 1단계: 음료 선택 */}
           <section>
             <p className="text-sm font-medium text-gray-700 mb-2">음료 선택</p>
@@ -149,6 +180,7 @@ export default function OrderModal({
                 setDirectInput(val);
                 setSelectedMenu("");
               }}
+              megaMenuOverride={isMegaStore && megaMenus.length > 0 ? megaMenus : undefined}
             />
           </section>
 
