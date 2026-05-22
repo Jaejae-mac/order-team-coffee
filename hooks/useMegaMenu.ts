@@ -34,8 +34,15 @@ export function useMegaMenu(options: Options = {}) {
 
         if (!json.success) throw new Error(json.error ?? "알 수 없는 오류");
 
-        // ScrapedMenuItem → 기존 MenuItem 타입으로 변환 (id, name, category만 사용)
-        setMenus(json.items.map((i) => ({ id: i.id, name: i.name, category: i.category })));
+        // ScrapedMenuItem → MenuItem 타입으로 변환 (imageUrl 포함)
+        setMenus(
+          json.items.map((i) => ({
+            id: i.id,
+            name: i.name,
+            category: i.category,
+            imageUrl: i.imageUrl || undefined,
+          }))
+        );
       } catch (e) {
         setError(e instanceof Error ? e.message : "오류가 발생했습니다.");
       } finally {

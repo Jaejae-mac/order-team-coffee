@@ -106,7 +106,6 @@ export default function MenuPicker({
           <TabsTrigger
             key={cat}
             value={cat}
-            // inline style로 활성 스타일 적용 — CSS 클래스 방식은 tabs.tsx 기본값과 충돌
             className="flex-none text-xs px-3 py-1 rounded-full border-2 transition-all"
             style={getTabStyle(cat)}
           >
@@ -145,6 +144,7 @@ export default function MenuPicker({
                 >
                   <DrinkCard
                     name={menu.name}
+                    imageUrl={menu.imageUrl}
                     size={44}
                     selected={selectedMenuName === menu.name}
                     storeColor={session.store_color}
