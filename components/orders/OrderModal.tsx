@@ -145,20 +145,26 @@ export default function OrderModal({
           {isMegaStore && (
             <div className="flex items-center justify-between rounded-lg bg-amber-50 border border-amber-200 px-3 py-2">
               <span className="text-xs text-amber-700">
-                {megaMenus.length > 0
-                  ? `실시간 메뉴 ${megaMenus.length}개 로드됨`
-                  : "최신 메뉴를 불러올 수 있습니다"}
+                {megaMenus.length > 0 ? "실시간 메뉴" : "최신 메뉴를 불러올 수 있습니다"}
               </span>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => refetch(true)}
-                disabled={menuLoading}
-                className="text-amber-700 border-amber-300 hover:bg-amber-100 h-7 gap-1.5"
-              >
-                <RefreshCw className={`w-3 h-3 ${menuLoading ? "animate-spin" : ""}`} />
-                {menuLoading ? "갱신 중..." : "메뉴판 갱신"}
-              </Button>
+              <div className="flex items-center gap-1.5">
+                {/* 갱신 완료 후 파싱된 메뉴 개수 뱃지 */}
+                {megaMenus.length > 0 && !menuLoading && (
+                  <span className="text-xs font-semibold text-amber-700 bg-amber-200 px-2 py-0.5 rounded-full">
+                    {megaMenus.length}개
+                  </span>
+                )}
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => refetch(true)}
+                  disabled={menuLoading}
+                  className="text-amber-700 border-amber-300 hover:bg-amber-100 h-7 gap-1.5"
+                >
+                  <RefreshCw className={`w-3 h-3 ${menuLoading ? "animate-spin" : ""}`} />
+                  {menuLoading ? "갱신 중..." : "메뉴판 갱신"}
+                </Button>
+              </div>
             </div>
           )}
           {menuError && isMegaStore && (
