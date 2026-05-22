@@ -3,10 +3,11 @@
  *
  * GET /api/mega-menu                  전체 음료 메뉴
  * GET /api/mega-menu?category=커피    카테고리 필터
- * GET /api/mega-menu?refresh=true     캐시 갱신
+ * GET /api/mega-menu?refresh=true     캐시 갱신 + DB upsert
  */
 import { NextRequest, NextResponse } from "next/server";
 import { getCachedMenu } from "@/lib/mega-coffee/cache";
+import { upsertMegaMenus } from "@/lib/mega-coffee/db";
 import { ScrapedMenuItem } from "@/lib/mega-coffee/scraper";
 
 export interface MenuApiResponse {
@@ -29,6 +30,13 @@ export async function GET(req: NextRequest) {
 
   try {
     const { items, fetchedAt, fromCache } = await getCachedMenu(forceRefresh);
+
+    // 신규 스크래핑(캐시 미사용)이면 DB에도 최신 메뉴 적재 (응답을 블록하지 않음)
+    if (!fromCache) {
+      upsertMegaMenus(items).catch((err) =>
+        console.error("[/api/mega-menu] DB upsert 실패:", err)
+      );
+    }
 
     const filtered = filterCategory
       ? items.filter((i) => i.category.includes(filterCategory))

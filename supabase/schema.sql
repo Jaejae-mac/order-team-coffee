@@ -157,3 +157,35 @@ CREATE POLICY "service_all_poll_votes"   ON poll_votes   FOR ALL TO service_role
 --     CHECK (poll_type IN ('regular', 'date_collect'));
 -- ALTER TABLE polls
 --   ADD COLUMN IF NOT EXISTS target_month TEXT;  -- 'YYYY-MM' 형식 (date_collect 전용)
+
+
+-- ============================================================
+-- 메가커피 실시간 메뉴 캐시 테이블
+-- ============================================================
+
+-- ── mega_menus 테이블 ────────────────────────────────────────
+-- 스크래핑된 메가커피 메뉴를 영구 저장. 메뉴판 갱신 시 upsert로 최신화
+CREATE TABLE IF NOT EXISTS mega_menus (
+  id         TEXT        PRIMARY KEY,           -- scraper에서 부여하는 순번 ID (예: "001")
+  name       TEXT        NOT NULL,              -- 한글 메뉴명
+  name_en    TEXT        NOT NULL DEFAULT '',   -- 영문 메뉴명
+  category   TEXT        NOT NULL,              -- 카테고리 (예: "커피", "티")
+  image_url  TEXT        NOT NULL DEFAULT '',   -- CloudFront 이미지 URL
+  price      TEXT        NOT NULL DEFAULT '',   -- 가격 문자열 (예: "₩2,000")
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW() -- 마지막 갱신 시각
+);
+
+-- 인덱스
+CREATE INDEX IF NOT EXISTS idx_mega_menus_category ON mega_menus(category);
+
+-- RLS 활성화
+ALTER TABLE mega_menus ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "anon_read_mega_menus"   ON mega_menus;
+DROP POLICY IF EXISTS "service_all_mega_menus" ON mega_menus;
+
+CREATE POLICY "anon_read_mega_menus" ON mega_menus
+  FOR SELECT TO anon USING (true);
+
+CREATE POLICY "service_all_mega_menus" ON mega_menus
+  FOR ALL TO service_role USING (true) WITH CHECK (true);

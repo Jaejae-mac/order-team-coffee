@@ -37,6 +37,7 @@ export interface MenuItem {
   id: string;
   name: string;
   category: string;
+  imageUrl?: string; // 실시간 스크래핑 시 채워지는 메뉴 이미지 URL (정적 메뉴는 undefined)
 }
 
 // ── 음료 시각 정보 ───────────────────────────────────────────
