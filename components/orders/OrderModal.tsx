@@ -27,8 +27,8 @@ interface OrderModalProps {
   session: Session;
   userName: string;
   userPart: string;
-  initialOrder?: Order;                   // 수정 모드일 때 기존 주문 데이터
-  prefillMenu?: string;                   // 빠른 추가 시 미리 선택할 메뉴 이름
+  initialOrder?: Order;
+  prefillMenu?: string;
   onOrderAdded: (order: Order) => void;
   onOrderEdited: (order: Order) => void;
 }
@@ -48,10 +48,8 @@ export default function OrderModal({
   const sizeOptions = getSizeOptions(session.store_id);
   const isMegaStore = session.store_id === "mega";
 
-  // 메가커피 세션에서만 실시간 메뉴판 갱신 기능 활성화
   const { menus: megaMenus, loading: menuLoading, error: menuError, refetch } = useMegaMenu({ autoFetch: false });
 
-  // 폼 상태 초기화 (수정 모드면 기존 값으로)
   const [selectedMenu, setSelectedMenu] = useState(initialOrder?.menu ?? "");
   const [directInput, setDirectInput] = useState("");
   const [temp, setTemp] = useState<"HOT" | "ICE">(initialOrder?.temp ?? "ICE");
@@ -60,7 +58,6 @@ export default function OrderModal({
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
 
-  // 수정 모드 전환 또는 빠른 추가(prefillMenu) 시 초기값 재설정
   useEffect(() => {
     if (initialOrder) {
       setSelectedMenu(initialOrder.menu);
@@ -77,7 +74,6 @@ export default function OrderModal({
     setError("");
   }, [initialOrder, prefillMenu, open, sizeOptions]);
 
-  // 실제 음료 이름 (선택 또는 직접 입력 중 하나)
   const finalMenu = directInput.trim() || selectedMenu;
 
   async function handleSubmit() {
@@ -85,38 +81,20 @@ export default function OrderModal({
       setError("음료를 선택하거나 직접 입력해주세요.");
       return;
     }
-
     setIsLoading(true);
     setError("");
-
     try {
       if (isEditMode && initialOrder) {
-        // 수정 모드
-        const result = await editOrder(initialOrder.id, {
-          menu: finalMenu,
-          size,
-          temp,
-          memo,
-        });
-        if (result.error || !result.data) {
-          setError(result.error ?? "수정에 실패했습니다.");
-          return;
-        }
+        const result = await editOrder(initialOrder.id, { menu: finalMenu, size, temp, memo });
+        if (result.error || !result.data) { setError(result.error ?? "수정에 실패했습니다."); return; }
         onOrderEdited(result.data);
       } else {
-        // 추가 모드
         const result = await addOrder(session.id, {
           name: userName,
           part: userPart as "channel" | "business" | "pay",
-          menu: finalMenu,
-          size,
-          temp,
-          memo,
+          menu: finalMenu, size, temp, memo,
         });
-        if (result.error || !result.data) {
-          setError(result.error ?? "주문 추가에 실패했습니다.");
-          return;
-        }
+        if (result.error || !result.data) { setError(result.error ?? "주문 추가에 실패했습니다."); return; }
         onOrderAdded(result.data);
       }
       onClose();
@@ -129,8 +107,6 @@ export default function OrderModal({
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
-      {/* max-w-sm 제거: dialog.tsx에 이미 모바일 안전 제약(max-w-[calc(100%-2rem)])이 있음 */}
-      {/* overflow-x-hidden: overflow-y-auto 설정 시 CSS 스펙상 overflow-x도 auto로 암묵 변환되므로 명시적으로 hidden 설정 */}
       <DialogContent className="max-h-[90vh] overflow-y-auto overflow-x-hidden">
         <DialogHeader>
           <DialogTitle>
@@ -138,17 +114,15 @@ export default function OrderModal({
           </DialogTitle>
         </DialogHeader>
 
-        {/* min-w-0: grid 아이템의 기본 min-width: auto를 0으로 재정의 → 자식 컨텐츠가 다이얼로그 너비를 넘지 않도록 방어 */}
         <div className="flex flex-col gap-4 min-w-0">
 
-          {/* 메가커피 세션일 때만 팝업 상단에 메뉴판 갱신 버튼 표시 */}
+          {/* 메가커피 세션 — 메뉴 불러오기 버튼 */}
           {isMegaStore && (
             <div className="flex items-center justify-between rounded-lg bg-amber-50 border border-amber-200 px-3 py-2">
               <span className="text-xs text-amber-700">
-                {megaMenus.length > 0 ? "실시간 메뉴" : "최신 메뉴를 불러올 수 있습니다"}
+                {megaMenus.length > 0 ? "메가커피 메뉴" : "메뉴를 불러오세요"}
               </span>
               <div className="flex items-center gap-1.5">
-                {/* 갱신 완료 후 파싱된 메뉴 개수 뱃지 */}
                 {megaMenus.length > 0 && !menuLoading && (
                   <span className="text-xs font-semibold text-amber-700 bg-amber-200 px-2 py-0.5 rounded-full">
                     {megaMenus.length}개
@@ -162,7 +136,7 @@ export default function OrderModal({
                   className="text-amber-700 border-amber-300 hover:bg-amber-100 h-7 gap-1.5"
                 >
                   <RefreshCw className={`w-3 h-3 ${menuLoading ? "animate-spin" : ""}`} />
-                  {menuLoading ? "갱신 중..." : "메뉴판 갱신"}
+                  {menuLoading ? "불러오는 중..." : "메뉴 불러오기"}
                 </Button>
               </div>
             </div>
@@ -177,15 +151,9 @@ export default function OrderModal({
             <MenuPicker
               session={session}
               selectedMenuName={selectedMenu}
-              onSelect={(name) => {
-                setSelectedMenu(name);
-                setDirectInput("");
-              }}
+              onSelect={(name) => { setSelectedMenu(name); setDirectInput(""); }}
               directInput={directInput}
-              onDirectInputChange={(val) => {
-                setDirectInput(val);
-                setSelectedMenu("");
-              }}
+              onDirectInputChange={(val) => { setDirectInput(val); setSelectedMenu(""); }}
               megaMenuOverride={isMegaStore && megaMenus.length > 0 ? megaMenus : undefined}
             />
           </section>
@@ -195,16 +163,13 @@ export default function OrderModal({
             <p className="text-sm font-medium text-gray-700 mb-2">온도</p>
             <div className="flex gap-2">
               {TEMP_OPTIONS.map((t) => (
-                <button
-                  key={t}
-                  onClick={() => setTemp(t)}
+                <button key={t} onClick={() => setTemp(t)}
                   className="flex-1 py-2.5 rounded-xl text-sm font-semibold border-2 transition-all"
                   style={{
                     borderColor: temp === t ? session.store_color : "#e5e7eb",
                     background: temp === t ? `${session.store_color}15` : "white",
                     color: temp === t ? session.store_color : "#374151",
-                  }}
-                >
+                  }}>
                   {t === "HOT" ? "🔥 HOT" : "🧊 ICE"}
                 </button>
               ))}
@@ -216,23 +181,20 @@ export default function OrderModal({
             <p className="text-sm font-medium text-gray-700 mb-2">사이즈</p>
             <div className="flex gap-2">
               {sizeOptions.map((s) => (
-                <button
-                  key={s}
-                  onClick={() => setSize(s)}
+                <button key={s} onClick={() => setSize(s)}
                   className="flex-1 py-2.5 rounded-xl text-sm font-semibold border-2 transition-all"
                   style={{
                     borderColor: size === s ? session.store_color : "#e5e7eb",
                     background: size === s ? `${session.store_color}15` : "white",
                     color: size === s ? session.store_color : "#374151",
-                  }}
-                >
+                  }}>
                   {s}
                 </button>
               ))}
             </div>
           </section>
 
-          {/* 4단계: 메모 입력 (선택 사항) */}
+          {/* 4단계: 메모 입력 */}
           <section>
             <p className="text-sm font-medium text-gray-700 mb-2">
               메모 <span className="text-gray-400 font-normal">(선택)</span>
@@ -252,11 +214,7 @@ export default function OrderModal({
             className="w-full"
             style={{ background: session.store_color }}
           >
-            {isLoading
-              ? "처리 중..."
-              : isEditMode
-              ? "수정 완료"
-              : "주문 추가"}
+            {isLoading ? "처리 중..." : isEditMode ? "수정 완료" : "주문 추가"}
           </Button>
         </div>
       </DialogContent>
