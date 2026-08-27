@@ -17,6 +17,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import MenuPicker from "@/components/orders/MenuPicker";
 import { getSizeOptions, TEMP_OPTIONS } from "@/lib/constants/stores";
+import { getMenus } from "@/lib/constants/menus";
 import { addOrder, editOrder } from "@/lib/actions/orderActions";
 import { useMegaMenu } from "@/hooks/useMegaMenu";
 import type { Session, Order } from "@/types";
@@ -60,7 +61,10 @@ export default function OrderModal({
 
   useEffect(() => {
     if (initialOrder) {
+      const staticMenus = isMegaStore ? megaMenus : getMenus(session.store_id);
+      const isKnownMenu = staticMenus.some((m) => m.name === initialOrder.menu);
       setSelectedMenu(initialOrder.menu);
+      setDirectInput(isKnownMenu ? "" : initialOrder.menu);
       setTemp(initialOrder.temp);
       setSize(initialOrder.size);
       setMemo(initialOrder.memo);
@@ -72,7 +76,7 @@ export default function OrderModal({
       setMemo("");
     }
     setError("");
-  }, [initialOrder, prefillMenu, open, sizeOptions]);
+  }, [initialOrder, prefillMenu, open, sizeOptions, isMegaStore, megaMenus, session.store_id]);
 
   const finalMenu = directInput.trim() || selectedMenu;
 

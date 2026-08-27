@@ -6,7 +6,7 @@
  */
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Input } from "@/components/ui/input";
 import DrinkCard from "@/components/drink/DrinkCard";
@@ -42,6 +42,13 @@ export default function MenuPicker({
       ? megaMenuOverride
       : getMenus(session.store_id);
   const isCustomStore = session.store_id === "custom" || menus.length === 0;
+
+  // 수정 모드에서 직접입력 값이 미리 채워지면 "직접입력" 탭을 자동으로 활성화
+  useEffect(() => {
+    if (!isCustomStore && directInput) {
+      setActiveCategory("직접입력");
+    }
+  }, [directInput, isCustomStore]);
 
   // 카테고리 목록 추출 (중복 제거)
   const categories = useMemo(
